@@ -29,6 +29,17 @@ export function useMonthTransactions(monthIso: string, filters: TransactionFilte
   });
 }
 
+/** Fetches transactions for an arbitrary [start, end] ISO date range — used by reports. */
+export function useTransactionsForRange(startIso: string, endIso: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["transactions", user?.id, "range", startIso, endIso],
+    queryFn: () => fetchTransactionsForRange(createClient(), { start: startIso, end: endIso }),
+    enabled: !!user,
+  });
+}
+
 export function useCreateTransaction() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

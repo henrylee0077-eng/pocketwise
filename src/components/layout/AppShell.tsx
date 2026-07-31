@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Wallet, Settings, PiggyBank, Plus } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, PiggyBank, Plus, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -15,6 +15,7 @@ function useNavItems() {
   return [
     { href: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
     { href: "/transactions", label: t("nav.expenses"), icon: Receipt },
+    { href: "/reports", label: t("nav.reports"), icon: BarChart3 },
     { href: "/budget", label: t("nav.budget"), icon: Wallet },
     { href: "/settings", label: t("nav.settings"), icon: Settings },
   ];
@@ -78,7 +79,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-border bg-card/95 px-2 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
-        {navItems.slice(0, 2).map((item) => (
+        {navItems.slice(0, 3).map((item) => (
           <NavTab key={item.href} item={item} active={pathname.startsWith(item.href)} />
         ))}
 
@@ -90,7 +91,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Plus className="size-6" />
         </Link>
 
-        {navItems.slice(2).map((item) => (
+        {navItems.slice(3).map((item) => (
           <NavTab key={item.href} item={item} active={pathname.startsWith(item.href)} />
         ))}
       </nav>
