@@ -206,6 +206,7 @@ export const quickAddExtractionSchema = z
     amount: z.number().min(0),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected yyyy-MM-dd." }),
     categoryId: z.string(),
+    newCategoryName: z.string(),
     accountId: z.string(),
     toAccountId: z.string(),
     paymentMethodId: z.string(),

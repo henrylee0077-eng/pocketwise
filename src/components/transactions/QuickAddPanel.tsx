@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ function draftToValues(draft: QuickAddDraft): TransactionFormValues {
 
 export function QuickAddPanel({ onSaved }: { onSaved?: () => void }) {
   const { t } = useLanguage();
+  const queryClient = useQueryClient();
   const createTransaction = useCreateTransaction();
   const deleteTransaction = useDeleteTransaction();
 
@@ -90,6 +92,10 @@ export function QuickAddPanel({ onSaved }: { onSaved?: () => void }) {
       }
 
       const created = await createTransaction.mutateAsync(draftToValues(body.draft));
+      // Quick-add may have auto-created a brand new category server-side
+      // (when nothing existing matched) — refresh so pickers elsewhere
+      // pick it up without a manual reload.
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
       toast.success(t("quickAdd.savedToast"), {
         action: {
           label: t("quickAdd.undo"),

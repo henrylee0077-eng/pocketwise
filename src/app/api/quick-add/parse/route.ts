@@ -2,11 +2,11 @@ import { Type } from "@google/genai";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createGoogleAIClient, QUICK_ADD_MODEL } from "@/lib/google-ai";
-import { fetchCategories } from "@/lib/queries/categories";
+import { createCategory, fetchCategories } from "@/lib/queries/categories";
 import { fetchAccountBalances } from "@/lib/queries/accounts";
 import { fetchPaymentMethods } from "@/lib/queries/payment-methods";
 import { quickAddExtractionSchema, quickAddRequestSchema } from "@/lib/validations";
-import { todayIso } from "@/lib/utils";
+import { slugify, todayIso } from "@/lib/utils";
 
 const OTHER_CATEGORY_KEYS = new Set(["others", "other_income"]);
 
@@ -39,6 +39,11 @@ const responseSchema = {
       type: Type.STRING,
       description: "Exact id from the provided category list, or empty string if none fits or type is transfer.",
     },
+    newCategoryName: {
+      type: Type.STRING,
+      description:
+        "Only when categoryId is empty because the user described a specific category that isn't in the list (e.g. 'pet supplies'): a short, clean category name in the same language the user used, to be created automatically. Empty string otherwise (including whenever categoryId is filled in, or when nothing specific enough has been said yet).",
+    },
     accountId: {
       type: Type.STRING,
       description:
@@ -63,6 +68,7 @@ const responseSchema = {
     "amount",
     "date",
     "categoryId",
+    "newCategoryName",
     "accountId",
     "toAccountId",
     "paymentMethodId",
@@ -127,7 +133,8 @@ Rules:
 - Always pick the single best-matching id from the lists above, or an empty string if nothing fits well. Never invent an id that isn't listed.
 - Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date; default to the reference date if no date is mentioned — date is the one required field that's satisfied by this default, so only ask about it if the user's phrasing is genuinely ambiguous (e.g. "the 30th" with no clear month).
 - For expense/income, merchant and payment method must be explicit or clearly implied by the conversation — do NOT default or guess them silently. If either is missing, ask about it.
-- Exception: if the best-matching category is the generic "Others" (expense) or "Other Income" (income) catch-all, merchant is OPTIONAL — do not ask for it in that case, an empty merchant is fine.
+- Category matching: do NOT settle for the generic "Others" (expense) or "Other Income" (income) catch-all just because nothing in the list is a perfect match. If the user's own words name or clearly imply a specific category that isn't in the list (e.g. "pet food", "gym membership", "宠物用品"), leave categoryId empty and instead put a short, clean category name for it (singular, same language the user used) in newCategoryName — treat this as resolved (do not ask a clarifying question just for this; the app will create the category automatically). Only actually use the "Others"/"Other Income" id (with newCategoryName left empty) when the user is genuinely vague about what it even is, or explicitly says something like "other"/"misc"/"其他".
+- Exception: if the resolved category ends up being the "Others"/"Other Income" catch-all itself, merchant is OPTIONAL — do not ask for it in that case, an empty merchant is fine.
 - Never ask more than one question per turn. Priority and note are always optional — never ask about those.
 
 Respond only with JSON matching the schema.`;
@@ -195,6 +202,43 @@ Respond only with JSON matching the schema.`;
     note: extraction.note,
     priority: priorities.has(extraction.priority) ? extraction.priority : "",
   };
+
+  // If the model couldn't match an existing category but the user named a
+  // specific one in their own words, create it automatically instead of
+  // falling back to Others/Other Income — this is the user's escape hatch
+  // for "I want to add another category" without a separate trip to
+  // Settings. Match against existing categories first (by key or name) so
+  // repeated use of the same new category doesn't create duplicates.
+  const trimmedNewCategoryName = extraction.newCategoryName.trim();
+  if (draft.type !== "transfer" && !draft.categoryId && trimmedNewCategoryName) {
+    const categoryType = draft.type;
+    const candidateKey = slugify(trimmedNewCategoryName);
+    const existingMatch = categories.find(
+      (c) =>
+        c.type === categoryType &&
+        (c.key === candidateKey ||
+          c.name_en.toLowerCase() === trimmedNewCategoryName.toLowerCase() ||
+          c.name_zh === trimmedNewCategoryName),
+    );
+    if (existingMatch) {
+      draft.categoryId = existingMatch.id;
+    } else {
+      try {
+        const created = await createCategory(supabase, user.id, {
+          type: categoryType,
+          nameEn: trimmedNewCategoryName,
+          nameZh: trimmedNewCategoryName,
+          icon: "Tag",
+          color: "#6B7280",
+          isEssential: true,
+        });
+        draft.categoryId = created.id;
+      } catch (error) {
+        console.error("quick-add auto-create category failed", error);
+        // Fall through — categoryId stays empty, the check below will ask.
+      }
+    }
+  }
 
   // Final sanity check even after the model said "ready" — if id resolution
   // dropped something essential (or the model was overconfident), ask
