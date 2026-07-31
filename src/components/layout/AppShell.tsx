@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Wallet, Settings, PiggyBank, Plus, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, PiggyBank, Plus, BarChart3, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -69,10 +69,30 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Top bar */}
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-end gap-2 border-b border-border bg-background/80 px-4 backdrop-blur md:left-60 md:pl-6">
-        <LanguageSwitcher />
-        <ThemeToggle />
-        <UserMenu />
+      <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur md:left-60 md:pl-6">
+        <Link
+          href="/dashboard"
+          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary md:hidden"
+          aria-label={t("app.nameLocal")}
+        >
+          <PiggyBank className="size-4" />
+        </Link>
+
+        <div className="flex flex-1 justify-center">
+          <Link
+            href="/transactions/new"
+            className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-primary/70 px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/25 transition-opacity hover:opacity-90 active:opacity-80"
+          >
+            <Sparkles className="size-3.5" />
+            {t("nav.askAi")}
+          </Link>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <LanguageSwitcher />
+          <ThemeToggle />
+          <UserMenu />
+        </div>
       </header>
 
       <main className="md:pl-60">{children}</main>

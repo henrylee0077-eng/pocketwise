@@ -11,6 +11,7 @@ export const en = {
     budget: "Budget",
     settings: "Settings",
     addExpense: "Add",
+    askAi: "Ask PocketWise AI",
   },
   auth: {
     signInTitle: "Welcome back",
@@ -256,6 +257,7 @@ export const zh = {
     budget: "预算",
     settings: "设置",
     addExpense: "记一笔",
+    askAi: "问省省账 AI",
   },
   auth: {
     signInTitle: "欢迎回来",
