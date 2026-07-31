@@ -37,6 +37,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="text-base font-semibold tracking-tight">{t("app.nameLocal")}</span>
         </div>
 
+        <Link
+          href="/ask-ai"
+          className="mb-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+        >
+          <Sparkles className="size-4.5" />
+          {t("nav.askAi")}
+        </Link>
+
         <nav className="flex flex-1 flex-col gap-1">
           {navItems.map((item) => {
             const active = pathname.startsWith(item.href);
@@ -70,23 +78,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       {/* Top bar */}
       <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/80 px-4 backdrop-blur md:left-60 md:pl-6">
-        <Link
-          href="/dashboard"
-          className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary md:hidden"
-          aria-label={t("app.nameLocal")}
-        >
-          <PiggyBank className="size-4" />
+        <Link href="/ask-ai" className="flex min-w-0 items-center gap-2 md:hidden">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <Sparkles className="size-4" />
+          </span>
+          <span className="truncate text-sm font-semibold text-foreground">{t("nav.askAi")}</span>
         </Link>
 
-        <div className="flex flex-1 justify-center">
-          <Link
-            href="/ask-ai"
-            className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-primary/70 px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/25 transition-opacity hover:opacity-90 active:opacity-80"
-          >
-            <Sparkles className="size-3.5" />
-            {t("nav.askAi")}
-          </Link>
-        </div>
+        <div className="flex-1" />
 
         <div className="flex shrink-0 items-center gap-2">
           <LanguageSwitcher />
