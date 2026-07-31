@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { ExpenseForm } from "@/components/expenses/ExpenseForm";
+import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
-export default function NewExpensePage() {
+export default function NewTransactionPage() {
   const router = useRouter();
   const { t } = useLanguage();
 
@@ -20,10 +20,10 @@ export default function NewExpensePage() {
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-semibold tracking-tight">{t("expenses.addExpense")}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{t("nav.addExpense")}</h1>
       </div>
 
-      <ExpenseForm onSuccess={() => router.push("/expenses")} onCancel={() => router.back()} />
+      <TransactionForm onSuccess={() => router.push("/transactions")} onCancel={() => router.back()} />
     </div>
   );
 }

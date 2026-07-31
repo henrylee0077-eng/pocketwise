@@ -67,3 +67,15 @@ export function formatMonthLabel(date: Date = new Date(), locale: "en" | "zh" = 
 export function formatInputDate(date: Date): string {
   return format(date, "yyyy-MM-dd");
 }
+
+/** Turns a display name into a URL/DB-safe key, with a short unique suffix. */
+export function slugify(input: string): string {
+  const base = input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9一-龥]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+  const suffix = Date.now().toString(36).slice(-4);
+  return `${base || "custom"}_${suffix}`;
+}

@@ -1,7 +1,7 @@
 // Hand-written mirror of the Supabase schema defined in
-// supabase/migrations/0001_init.sql. If the schema changes, update this file
-// (or, once the project is linked, regenerate it with:
-//   supabase gen types typescript --linked > src/types/database.ts
+// supabase/migrations/0001_init.sql and 0002_transactions_phase1.sql. If the
+// schema changes, update this file (or, once the project is linked,
+// regenerate it with: supabase gen types typescript --linked > src/types/database.ts
 export type Json =
   | string
   | number
@@ -58,6 +58,7 @@ export interface Database {
           is_essential: boolean;
           is_system: boolean;
           sort_order: number;
+          type: "expense" | "income";
           created_at: string;
         };
         Insert: {
@@ -71,6 +72,7 @@ export interface Database {
           is_essential?: boolean;
           is_system?: boolean;
           sort_order?: number;
+          type?: "expense" | "income";
           created_at?: string;
         };
         Update: {
@@ -84,11 +86,69 @@ export interface Database {
           is_essential?: boolean;
           is_system?: boolean;
           sort_order?: number;
+          type?: "expense" | "income";
           created_at?: string;
         };
         Relationships: [];
       };
-      expenses: {
+      payment_methods: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          key: string;
+          name_en: string;
+          name_zh: string;
+          icon: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          key: string;
+          name_en: string;
+          name_zh: string;
+          icon?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          key?: string;
+          name_en?: string;
+          name_zh?: string;
+          icon?: string;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      tags: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          color: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          color?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          color?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      transactions: {
         Row: {
           id: string;
           user_id: string;
@@ -97,6 +157,10 @@ export interface Database {
           currency: string;
           note: string | null;
           expense_date: string;
+          type: "expense" | "income";
+          payment_method_id: string | null;
+          priority: "high" | "medium" | "low" | null;
+          merchant: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -108,6 +172,10 @@ export interface Database {
           currency?: string;
           note?: string | null;
           expense_date?: string;
+          type?: "expense" | "income";
+          payment_method_id?: string | null;
+          priority?: "high" | "medium" | "low" | null;
+          merchant?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -119,15 +187,56 @@ export interface Database {
           currency?: string;
           note?: string | null;
           expense_date?: string;
+          type?: "expense" | "income";
+          payment_method_id?: string | null;
+          priority?: "high" | "medium" | "low" | null;
+          merchant?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "expenses_category_id_fkey";
+            foreignKeyName: "transactions_category_id_fkey";
             columns: ["category_id"];
             isOneToOne: false;
             referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_payment_method_id_fkey";
+            columns: ["payment_method_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      transaction_tags: {
+        Row: {
+          transaction_id: string;
+          tag_id: string;
+        };
+        Insert: {
+          transaction_id: string;
+          tag_id: string;
+        };
+        Update: {
+          transaction_id?: string;
+          tag_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tags_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transaction_tags_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
             referencedColumns: ["id"];
           },
         ];
@@ -161,6 +270,47 @@ export interface Database {
           updated_at?: string;
         };
         Relationships: [];
+      };
+      category_budgets: {
+        Row: {
+          id: string;
+          user_id: string;
+          category_id: string;
+          month: string;
+          amount: number;
+          warning_threshold_percent: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          category_id: string;
+          month: string;
+          amount: number;
+          warning_threshold_percent?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          category_id?: string;
+          month?: string;
+          amount?: number;
+          warning_threshold_percent?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "category_budgets_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+        ];
       };
     };
     Views: Record<string, never>;

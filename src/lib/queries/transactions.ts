@@ -1,0 +1,157 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/types/database";
+import type { TransactionFilters, TransactionWithTags } from "@/types";
+import type { TransactionFormValues } from "@/lib/validations";
+
+export interface DateRange {
+  /** Inclusive, ISO yyyy-MM-dd */
+  start: string;
+  /** Inclusive, ISO yyyy-MM-dd */
+  end: string;
+}
+
+/**
+ * Fetches transactions in a date range (optionally further narrowed by
+ * `filters`) along with the tag ids attached to each one. Tags are fetched
+ * in a second query and merged client-side to keep the main query simple.
+ */
+export async function fetchTransactionsForRange(
+  supabase: SupabaseClient<Database>,
+  range: DateRange,
+  filters: TransactionFilters = {},
+): Promise<TransactionWithTags[]> {
+  let query = supabase
+    .from("transactions")
+    .select("*")
+    .gte("expense_date", filters.dateFrom ?? range.start)
+    .lte("expense_date", filters.dateTo ?? range.end)
+    .order("expense_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (filters.type) query = query.eq("type", filters.type);
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    query = query.in("category_id", filters.categoryIds);
+  }
+  if (filters.paymentMethodIds && filters.paymentMethodIds.length > 0) {
+    query = query.in("payment_method_id", filters.paymentMethodIds);
+  }
+  if (filters.priority) query = query.eq("priority", filters.priority);
+  if (filters.merchantQuery && filters.merchantQuery.trim().length > 0) {
+    query = query.ilike("merchant", `%${filters.merchantQuery.trim()}%`);
+  }
+
+  const { data: transactions, error } = await query;
+  if (error) throw error;
+  if (!transactions || transactions.length === 0) return [];
+
+  const ids = transactions.map((t) => t.id);
+  const { data: tagLinks, error: tagError } = await supabase
+    .from("transaction_tags")
+    .select("transaction_id, tag_id")
+    .in("transaction_id", ids);
+  if (tagError) throw tagError;
+
+  const tagsByTransaction = new Map<string, string[]>();
+  for (const link of tagLinks ?? []) {
+    const existing = tagsByTransaction.get(link.transaction_id) ?? [];
+    existing.push(link.tag_id);
+    tagsByTransaction.set(link.transaction_id, existing);
+  }
+
+  let result = transactions.map((t) => ({
+    ...t,
+    tagIds: tagsByTransaction.get(t.id) ?? [],
+  }));
+
+  if (filters.tagIds && filters.tagIds.length > 0) {
+    const wanted = new Set(filters.tagIds);
+    result = result.filter((t) => t.tagIds.some((tagId) => wanted.has(tagId)));
+  }
+
+  return result;
+}
+
+async function setTransactionTags(
+  supabase: SupabaseClient<Database>,
+  transactionId: string,
+  tagIds: string[],
+) {
+  const { error: deleteError } = await supabase
+    .from("transaction_tags")
+    .delete()
+    .eq("transaction_id", transactionId);
+  if (deleteError) throw deleteError;
+
+  if (tagIds.length === 0) return;
+
+  const { error: insertError } = await supabase
+    .from("transaction_tags")
+    .insert(tagIds.map((tagId) => ({ transaction_id: transactionId, tag_id: tagId })));
+  if (insertError) throw insertError;
+}
+
+export async function createTransaction(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  values: TransactionFormValues,
+): Promise<TransactionWithTags> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .insert({
+      user_id: userId,
+      category_id: values.categoryId,
+      amount: values.amount,
+      type: values.type,
+      expense_date: values.date,
+      payment_method_id: values.paymentMethodId || null,
+      priority: values.priority || null,
+      merchant: values.merchant || null,
+      note: values.note || null,
+    })
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  if (values.tagIds.length > 0) {
+    await setTransactionTags(supabase, data.id, values.tagIds);
+  }
+
+  return { ...data, tagIds: values.tagIds };
+}
+
+export async function updateTransaction(
+  supabase: SupabaseClient<Database>,
+  id: string,
+  values: TransactionFormValues,
+): Promise<TransactionWithTags> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .update({
+      category_id: values.categoryId,
+      amount: values.amount,
+      type: values.type,
+      expense_date: values.date,
+      payment_method_id: values.paymentMethodId || null,
+      priority: values.priority || null,
+      merchant: values.merchant || null,
+      note: values.note || null,
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+
+  await setTransactionTags(supabase, id, values.tagIds);
+
+  return { ...data, tagIds: values.tagIds };
+}
+
+export async function deleteTransaction(
+  supabase: SupabaseClient<Database>,
+  id: string,
+): Promise<void> {
+  const { error } = await supabase.from("transactions").delete().eq("id", id);
+  if (error) throw error;
+}

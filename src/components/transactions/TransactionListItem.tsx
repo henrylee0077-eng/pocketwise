@@ -15,26 +15,32 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { CategoryIcon, categoryName } from "@/components/expenses/CategoryPicker";
+import { CategoryIcon, categoryName } from "@/components/transactions/CategoryPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { useDeleteExpense } from "@/hooks/use-expenses";
-import { formatCurrency, formatDisplayDate } from "@/lib/utils";
-import type { Category, Expense } from "@/types";
+import { useDeleteTransaction } from "@/hooks/use-transactions";
+import { cn, formatCurrency, formatDisplayDate } from "@/lib/utils";
+import type { Category, TransactionWithTags } from "@/types";
 
-export function ExpenseListItem({
-  expense,
+const PRIORITY_DOT: Record<string, string> = {
+  high: "bg-destructive",
+  medium: "bg-warning",
+  low: "bg-muted-foreground",
+};
+
+export function TransactionListItem({
+  transaction,
   category,
 }: {
-  expense: Expense;
+  transaction: TransactionWithTags;
   category: Category | undefined;
 }) {
   const { locale, t } = useLanguage();
-  const deleteExpense = useDeleteExpense();
+  const deleteTransaction = useDeleteTransaction();
   const [open, setOpen] = useState(false);
 
   async function handleDelete() {
     try {
-      await deleteExpense.mutateAsync(expense.id);
+      await deleteTransaction.mutateAsync(transaction.id);
       toast.success(t("expenses.toastDeleted"));
     } catch {
       toast.error(t("common.error"));
@@ -43,30 +49,47 @@ export function ExpenseListItem({
     }
   }
 
+  const subtitleParts = [
+    formatDisplayDate(transaction.expense_date, locale),
+    transaction.merchant,
+    transaction.note,
+  ].filter(Boolean);
+
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm">
       <span
-        className="flex size-11 shrink-0 items-center justify-center rounded-full"
+        className="relative flex size-11 shrink-0 items-center justify-center rounded-full"
         style={{
           backgroundColor: `${category?.color ?? "#6B7280"}22`,
           color: category?.color ?? "#6B7280",
         }}
       >
         <CategoryIcon name={category?.icon ?? "MoreHorizontal"} className="size-5" />
+        {transaction.priority && (
+          <span
+            className={cn(
+              "absolute -right-0.5 -top-0.5 size-2.5 rounded-full ring-2 ring-card",
+              PRIORITY_DOT[transaction.priority],
+            )}
+          />
+        )}
       </span>
 
-      <Link href={`/expenses/${expense.id}/edit`} className="min-w-0 flex-1">
+      <Link href={`/transactions/${transaction.id}/edit`} className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">
           {category ? categoryName(category, locale) : "—"}
         </p>
-        <p className="truncate text-xs text-muted-foreground">
-          {formatDisplayDate(expense.expense_date, locale)}
-          {expense.note ? ` · ${expense.note}` : ""}
-        </p>
+        <p className="truncate text-xs text-muted-foreground">{subtitleParts.join(" · ")}</p>
       </Link>
 
-      <span className="shrink-0 text-sm font-semibold text-foreground">
-        {formatCurrency(Number(expense.amount))}
+      <span
+        className={cn(
+          "shrink-0 text-sm font-semibold tabular-nums",
+          transaction.type === "income" ? "text-primary" : "text-foreground",
+        )}
+      >
+        {transaction.type === "income" ? "+" : ""}
+        {formatCurrency(Number(transaction.amount))}
       </span>
 
       <AlertDialog open={open} onOpenChange={setOpen}>

@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BudgetForm } from "@/components/budget/BudgetForm";
+import { CategoryBudgetSection } from "@/components/budget/CategoryBudgetSection";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useBudgetHistory } from "@/hooks/use-budget";
@@ -40,7 +41,8 @@ export default function BudgetPage() {
             />
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                {formatCurrency(summary.monthTotal)} / {formatCurrency(Number(summary.budget.amount))}
+                {formatCurrency(summary.monthExpenseTotal)} /{" "}
+                {formatCurrency(Number(summary.budget.amount))}
               </span>
               <span
                 className={
@@ -64,6 +66,10 @@ export default function BudgetPage() {
           <BudgetForm monthIso={currentMonthIso} budget={summary?.budget ?? null} />
         </CardContent>
       </Card>
+
+      {summary && (
+        <CategoryBudgetSection monthIso={currentMonthIso} statuses={summary.categoryBudgets} />
+      )}
 
       <Card>
         <CardHeader>

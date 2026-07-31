@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, LogOut, Tag, Tags } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
@@ -20,6 +21,30 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-28 pt-6 sm:px-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t("settings.title")}</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("settings.manage")}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1 p-0">
+          <Link
+            href="/settings/categories"
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            <Tags className="size-4 text-muted-foreground" />
+            <span className="flex-1">{t("categories.title")}</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+          <Link
+            href="/settings/tags"
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            <Tag className="size-4 text-muted-foreground" />
+            <span className="flex-1">{t("transactions.tags")}</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

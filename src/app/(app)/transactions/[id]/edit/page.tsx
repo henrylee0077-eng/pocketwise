@@ -4,27 +4,32 @@ import { use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { ExpenseForm } from "@/components/expenses/ExpenseForm";
+import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/providers/AuthProvider";
+import type { TransactionWithTags } from "@/types";
 
-export default function EditExpensePage({ params }: { params: Promise<{ id: string }> }) {
+export default function EditTransactionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { t } = useLanguage();
   const { user } = useAuth();
 
-  const { data: expense, isLoading } = useQuery({
-    queryKey: ["expense", id],
-    queryFn: async () => {
-      const { data, error } = await createClient()
-        .from("expenses")
-        .select("*")
-        .eq("id", id)
-        .single();
+  const { data: transaction, isLoading } = useQuery({
+    queryKey: ["transaction", id],
+    queryFn: async (): Promise<TransactionWithTags> => {
+      const supabase = createClient();
+      const { data, error } = await supabase.from("transactions").select("*").eq("id", id).single();
       if (error) throw error;
-      return data;
+
+      const { data: tagLinks, error: tagError } = await supabase
+        .from("transaction_tags")
+        .select("tag_id")
+        .eq("transaction_id", id);
+      if (tagError) throw tagError;
+
+      return { ...data, tagIds: (tagLinks ?? []).map((l) => l.tag_id) };
     },
     enabled: !!user,
   });
@@ -43,14 +48,14 @@ export default function EditExpensePage({ params }: { params: Promise<{ id: stri
         <h1 className="text-xl font-semibold tracking-tight">{t("expenses.editExpense")}</h1>
       </div>
 
-      {isLoading || !expense ? (
+      {isLoading || !transaction ? (
         <div className="flex justify-center py-10">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <ExpenseForm
-          expense={expense}
-          onSuccess={() => router.push("/expenses")}
+        <TransactionForm
+          transaction={transaction}
+          onSuccess={() => router.push("/transactions")}
           onCancel={() => router.back()}
         />
       )}

@@ -14,14 +14,18 @@ export function SummaryCards({ summary }: { summary: DashboardSummary }) {
       <Card>
         <CardContent className="p-4">
           <p className="text-xs font-medium text-muted-foreground">{t("dashboard.todaySpending")}</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums">{formatCurrency(summary.todayTotal)}</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">
+            {formatCurrency(summary.todayExpenseTotal)}
+          </p>
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="p-4">
           <p className="text-xs font-medium text-muted-foreground">{t("dashboard.monthSpending")}</p>
-          <p className="mt-1 text-xl font-semibold tabular-nums">{formatCurrency(summary.monthTotal)}</p>
+          <p className="mt-1 text-xl font-semibold tabular-nums">
+            {formatCurrency(summary.monthExpenseTotal)}
+          </p>
         </CardContent>
       </Card>
 
