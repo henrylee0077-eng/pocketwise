@@ -8,6 +8,8 @@ import { fetchPaymentMethods } from "@/lib/queries/payment-methods";
 import { quickAddExtractionSchema, quickAddRequestSchema } from "@/lib/validations";
 import { todayIso } from "@/lib/utils";
 
+const OTHER_CATEGORY_KEYS = new Set(["others", "other_income"]);
+
 const responseSchema = {
   type: Type.OBJECT,
   properties: {
@@ -125,6 +127,7 @@ Rules:
 - Always pick the single best-matching id from the lists above, or an empty string if nothing fits well. Never invent an id that isn't listed.
 - Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date; default to the reference date if no date is mentioned — date is the one required field that's satisfied by this default, so only ask about it if the user's phrasing is genuinely ambiguous (e.g. "the 30th" with no clear month).
 - For expense/income, merchant and payment method must be explicit or clearly implied by the conversation — do NOT default or guess them silently. If either is missing, ask about it.
+- Exception: if the best-matching category is the generic "Others" (expense) or "Other Income" (income) catch-all, merchant is OPTIONAL — do not ask for it in that case, an empty merchant is fine.
 - Never ask more than one question per turn. Priority and note are always optional — never ask about those.
 
 Respond only with JSON matching the schema.`;
@@ -217,7 +220,11 @@ Respond only with JSON matching the schema.`;
         question: "How did you pay for this — cash, debit, credit card, e-wallet, or bank transfer?",
       });
     }
-    if (!draft.merchant.trim()) {
+    // "Others" / "Other Income" are catch-all buckets by design, so a
+    // merchant name is optional there rather than a required field.
+    const resolvedCategory = categories.find((c) => c.id === draft.categoryId);
+    const isCatchAllCategory = resolvedCategory ? OTHER_CATEGORY_KEYS.has(resolvedCategory.key) : false;
+    if (!isCatchAllCategory && !draft.merchant.trim()) {
       return NextResponse.json({
         status: "needs_clarification",
         question: "Who was this with, or where — the merchant or payee name?",
