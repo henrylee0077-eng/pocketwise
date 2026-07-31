@@ -80,7 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="flex flex-1 justify-center">
           <Link
-            href="/transactions/new"
+            href="/ask-ai"
             className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary to-primary/70 px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/25 transition-opacity hover:opacity-90 active:opacity-80"
           >
             <Sparkles className="size-3.5" />
