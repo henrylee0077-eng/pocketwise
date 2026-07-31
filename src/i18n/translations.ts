@@ -209,9 +209,13 @@ export const en = {
   quickAdd: {
     title: "Quick add",
     placeholder: "e.g. today lunch RM20, pay HSBC credit card RM200.40 for a bag",
-    parse: "Parse",
-    hint: "Describe it in plain English or Chinese — we'll fill in the form below for you to check before saving.",
-    reviewHint: "Double-check the details below, then save.",
+    answerPlaceholder: "Type your answer…",
+    parse: "Send",
+    hint: "Describe it in plain English or Chinese. If anything's missing we'll ask — once we have enough, it's saved automatically.",
+    orManual: "or enter manually",
+    savedToast: "Added to your transactions.",
+    undo: "Undo",
+    undoneToast: "Removed.",
     error: "Couldn't understand that — try rephrasing, or fill in the form manually.",
   },
   reports: {
@@ -450,9 +454,13 @@ export const zh = {
   quickAdd: {
     title: "快速记账",
     placeholder: "例如：今天午餐 RM20，用汇丰信用卡买包花了 RM200.40",
-    parse: "解析",
-    hint: "用中文或英文随意描述一下，我们会帮你填好下面的表单，保存前可以再检查一遍。",
-    reviewHint: "请检查下面的信息，确认无误后保存。",
+    answerPlaceholder: "输入你的回答…",
+    parse: "发送",
+    hint: "用中文或英文随意描述一下。信息不全时我们会追问，信息齐全后会自动保存。",
+    orManual: "或手动填写",
+    savedToast: "已添加到交易记录。",
+    undo: "撤销",
+    undoneToast: "已删除。",
     error: "没有理解这句话，换个说法试试，或者手动填写表单。",
   },
   reports: {

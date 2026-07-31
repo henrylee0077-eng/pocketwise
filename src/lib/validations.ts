@@ -180,25 +180,42 @@ export const recurringTransactionFormSchema = z
 export type RecurringTransactionFormInput = z.input<typeof recurringTransactionFormSchema>;
 export type RecurringTransactionFormValues = z.output<typeof recurringTransactionFormSchema>;
 
+export const quickAddTurnSchema = z.object({
+  role: z.enum(["user", "model"]),
+  text: z.string().min(1).max(500),
+});
+export type QuickAddTurn = z.infer<typeof quickAddTurnSchema>;
+
 export const quickAddRequestSchema = z.object({
-  text: z
-    .string()
-    .min(1, { message: "Type something to parse." })
-    .max(300, { message: "Keep it under 300 characters." }),
+  turns: z.array(quickAddTurnSchema).min(1).max(12),
 });
 export type QuickAddRequest = z.infer<typeof quickAddRequestSchema>;
 
-/** Raw shape returned by Claude's tool call, before we resolve/sanitize ids against the user's real data. */
-export const quickAddExtractionSchema = z.object({
-  type: z.enum(["expense", "income", "transfer"]),
-  amount: z.number().positive(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected yyyy-MM-dd." }),
-  categoryId: z.string(),
-  accountId: z.string(),
-  toAccountId: z.string(),
-  paymentMethodId: z.string(),
-  merchant: z.string(),
-  note: z.string(),
-  priority: z.string(),
-});
+/**
+ * Raw shape returned by Gemini's structured output, before we resolve/
+ * sanitize ids against the user's real data. `status` drives the
+ * conversation: "needs_clarification" means the model needs one more
+ * detail before it's confident enough to save anything, in which case only
+ * `clarifyingQuestion` matters and the transaction fields are ignored.
+ */
+export const quickAddExtractionSchema = z
+  .object({
+    status: z.enum(["ready", "needs_clarification"]),
+    clarifyingQuestion: z.string(),
+    type: z.enum(["expense", "income", "transfer"]),
+    amount: z.number().min(0),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected yyyy-MM-dd." }),
+    categoryId: z.string(),
+    accountId: z.string(),
+    toAccountId: z.string(),
+    paymentMethodId: z.string(),
+    merchant: z.string(),
+    note: z.string(),
+    priority: z.string(),
+  })
+  .superRefine((val, ctx) => {
+    if (val.status === "ready" && val.amount <= 0) {
+      ctx.addIssue({ code: "custom", path: ["amount"], message: "Amount must be greater than 0." });
+    }
+  });
 export type QuickAddExtraction = z.infer<typeof quickAddExtractionSchema>;

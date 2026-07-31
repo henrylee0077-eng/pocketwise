@@ -11,16 +11,27 @@ import { todayIso } from "@/lib/utils";
 const responseSchema = {
   type: Type.OBJECT,
   properties: {
+    status: {
+      type: Type.STRING,
+      enum: ["ready", "needs_clarification"],
+      description:
+        "'ready' once you're confident about the amount and (for expense/income) a category, or (for transfer) both accounts. 'needs_clarification' if any of that is genuinely missing or ambiguous from the conversation so far.",
+    },
+    clarifyingQuestion: {
+      type: Type.STRING,
+      description: "One short, friendly question to ask the user. Only used when status is needs_clarification, else empty string.",
+    },
     type: {
       type: Type.STRING,
       enum: ["expense", "income", "transfer"],
       description:
         "expense = money spent (including credit card purchases charged to a card account); income = money received; transfer = explicitly moving money between two of the user's own named accounts (e.g. 'transfer RM500 from Maybank to HSBC').",
     },
-    amount: { type: Type.NUMBER, description: "Positive number, currency symbols/codes stripped." },
+    amount: { type: Type.NUMBER, description: "Positive number, currency symbols/codes stripped. 0 if not yet known." },
     date: {
       type: Type.STRING,
-      description: "yyyy-MM-dd, resolved from relative words like today/yesterday against the reference date given.",
+      description:
+        "yyyy-MM-dd, resolved from relative words like today/yesterday against the reference date given. Default to the reference date if unspecified.",
     },
     categoryId: {
       type: Type.STRING,
@@ -44,6 +55,8 @@ const responseSchema = {
     priority: { type: Type.STRING, description: "'high', 'medium', 'low', or empty string if not implied." },
   },
   required: [
+    "status",
+    "clarifyingQuestion",
     "type",
     "amount",
     "date",
@@ -88,7 +101,7 @@ export async function POST(request: Request) {
 
   const today = todayIso();
 
-  const systemInstruction = `You extract structured personal expense-tracker transactions from short free-text commands, in English or Chinese. The app's currency is Malaysian Ringgit (RM/MYR). Today's reference date is ${today}.
+  const systemInstruction = `You extract structured personal expense-tracker transactions from a short conversation, in English or Chinese. The app's currency is Malaysian Ringgit (RM/MYR). Today's reference date is ${today}.
 
 Available categories (id :: name):
 ${categoryList || "(none)"}
@@ -99,20 +112,23 @@ ${accountList || "(none)"}
 Available payment methods (id :: name):
 ${paymentMethodList || "(none)"}
 
+This is a multi-turn conversation. The user's first message is a command like "today lunch RM20" or "pay HSBC credit card RM200.40 for a bag". If you already have enough to record a sensible transaction, set status to "ready" — the app will save it immediately with no further confirmation, so only mark "ready" when you're actually confident. If something essential is missing or ambiguous (usually the amount, or which category/account it belongs to), set status to "needs_clarification" and ask exactly ONE short, specific, friendly question. The user's next message will answer that question — use the whole conversation so far to fill in the final transaction.
+
 Rules:
 - "pay credit card X for <purchase>" or "spent RM.. on credit card X" is an EXPENSE charged to account X, NOT a transfer — it increases what the user owes on that card.
-- Only use type "transfer" when the user is explicitly moving money between two of their own listed accounts (e.g. paying off a card FROM a bank account, "transfer from A to B").
+- Only use type "transfer" when the user is explicitly moving money between two of their own listed accounts.
 - Always pick the single best-matching id from the lists above, or an empty string if nothing fits well. Never invent an id that isn't listed.
-- Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date.
+- Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date; default to the reference date if no date is mentioned.
+- Never ask more than one question per turn, and never ask about fields that already have a sensible default (date, priority, merchant, note, payment method) — only ask about amount or category/account when truly unclear.
 
-Respond only with the extracted JSON matching the schema.`;
+Respond only with JSON matching the schema.`;
 
   const ai = createGoogleAIClient();
   let rawJson: string | undefined;
   try {
     const response = await ai.models.generateContent({
       model: QUICK_ADD_MODEL,
-      contents: body.data.text,
+      contents: body.data.turns.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
       config: {
         systemInstruction,
         responseMimeType: "application/json",
@@ -143,6 +159,13 @@ Respond only with the extracted JSON matching the schema.`;
 
   const extraction = parsed.data;
 
+  if (extraction.status === "needs_clarification") {
+    return NextResponse.json({
+      status: "needs_clarification",
+      question: extraction.clarifyingQuestion || "Could you give me a bit more detail?",
+    });
+  }
+
   // Defensive: never trust an id the model returns unless it's actually one
   // we offered — silently drop anything hallucinated rather than crash or
   // save against the wrong row.
@@ -164,5 +187,22 @@ Respond only with the extracted JSON matching the schema.`;
     priority: priorities.has(extraction.priority) ? extraction.priority : "",
   };
 
-  return NextResponse.json({ draft });
+  // Final sanity check even after the model said "ready" — if id resolution
+  // dropped something essential, ask rather than silently save a broken
+  // transaction.
+  if (draft.type === "transfer") {
+    if (!draft.accountId || !draft.toAccountId) {
+      return NextResponse.json({
+        status: "needs_clarification",
+        question: "Which two accounts should this transfer be between?",
+      });
+    }
+  } else if (!draft.categoryId) {
+    return NextResponse.json({
+      status: "needs_clarification",
+      question: "Which category should this go under?",
+    });
+  }
+
+  return NextResponse.json({ status: "ready", draft });
 }
