@@ -179,3 +179,26 @@ export const recurringTransactionFormSchema = z
 
 export type RecurringTransactionFormInput = z.input<typeof recurringTransactionFormSchema>;
 export type RecurringTransactionFormValues = z.output<typeof recurringTransactionFormSchema>;
+
+export const quickAddRequestSchema = z.object({
+  text: z
+    .string()
+    .min(1, { message: "Type something to parse." })
+    .max(300, { message: "Keep it under 300 characters." }),
+});
+export type QuickAddRequest = z.infer<typeof quickAddRequestSchema>;
+
+/** Raw shape returned by Claude's tool call, before we resolve/sanitize ids against the user's real data. */
+export const quickAddExtractionSchema = z.object({
+  type: z.enum(["expense", "income", "transfer"]),
+  amount: z.number().positive(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Expected yyyy-MM-dd." }),
+  categoryId: z.string(),
+  accountId: z.string(),
+  toAccountId: z.string(),
+  paymentMethodId: z.string(),
+  merchant: z.string(),
+  note: z.string(),
+  priority: z.string(),
+});
+export type QuickAddExtraction = z.infer<typeof quickAddExtractionSchema>;

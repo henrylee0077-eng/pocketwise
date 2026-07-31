@@ -30,10 +30,13 @@ import type { TransactionType, TransactionWithTags } from "@/types";
 
 export function TransactionForm({
   transaction,
+  initialValues,
   onSuccess,
   onCancel,
 }: {
   transaction?: TransactionWithTags;
+  /** Prefills a brand-new (non-editing) form, e.g. from the quick-add parser. Ignored when `transaction` is set. */
+  initialValues?: Partial<TransactionFormInput>;
   onSuccess: () => void;
   onCancel?: () => void;
 }) {
@@ -52,16 +55,16 @@ export function TransactionForm({
   } = useForm<TransactionFormInput, unknown, TransactionFormValues>({
     resolver: zodResolver(transactionFormSchema),
     defaultValues: {
-      type: transaction?.type ?? "expense",
-      amount: transaction ? Number(transaction.amount) : undefined,
-      categoryId: transaction?.category_id ?? "",
-      paymentMethodId: transaction?.payment_method_id ?? "",
-      accountId: transaction?.account_id ?? "",
-      toAccountId: transaction?.to_account_id ?? "",
-      priority: transaction?.priority ?? "",
-      date: transaction?.expense_date ?? todayIso(),
-      merchant: transaction?.merchant ?? "",
-      note: transaction?.note ?? "",
+      type: transaction?.type ?? initialValues?.type ?? "expense",
+      amount: transaction ? Number(transaction.amount) : (initialValues?.amount as number | undefined),
+      categoryId: transaction?.category_id ?? initialValues?.categoryId ?? "",
+      paymentMethodId: transaction?.payment_method_id ?? initialValues?.paymentMethodId ?? "",
+      accountId: transaction?.account_id ?? initialValues?.accountId ?? "",
+      toAccountId: transaction?.to_account_id ?? initialValues?.toAccountId ?? "",
+      priority: transaction?.priority ?? initialValues?.priority ?? "",
+      date: transaction?.expense_date ?? initialValues?.date ?? todayIso(),
+      merchant: transaction?.merchant ?? initialValues?.merchant ?? "",
+      note: transaction?.note ?? initialValues?.note ?? "",
       tagIds: transaction?.tagIds ?? [],
     },
   });

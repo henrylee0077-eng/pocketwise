@@ -206,6 +206,14 @@ export const en = {
     account: "Account",
     signOut: "Sign out",
   },
+  quickAdd: {
+    title: "Quick add",
+    placeholder: "e.g. today lunch RM20, pay HSBC credit card RM200.40 for a bag",
+    parse: "Parse",
+    hint: "Describe it in plain English or Chinese — we'll fill in the form below for you to check before saving.",
+    reviewHint: "Double-check the details below, then save.",
+    error: "Couldn't understand that — try rephrasing, or fill in the form manually.",
+  },
   reports: {
     title: "Reports",
     week: "Week",
@@ -438,6 +446,14 @@ export const zh = {
     themeSystem: "跟随系统",
     account: "账户",
     signOut: "退出登录",
+  },
+  quickAdd: {
+    title: "快速记账",
+    placeholder: "例如：今天午餐 RM20，用汇丰信用卡买包花了 RM200.40",
+    parse: "解析",
+    hint: "用中文或英文随意描述一下，我们会帮你填好下面的表单，保存前可以再检查一遍。",
+    reviewHint: "请检查下面的信息，确认无误后保存。",
+    error: "没有理解这句话，换个说法试试，或者手动填写表单。",
   },
   reports: {
     title: "报表",
