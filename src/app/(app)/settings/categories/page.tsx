@@ -20,7 +20,7 @@ import { CategoryFormDialog } from "@/components/settings/CategoryFormDialog";
 import { CategoryIcon, categoryName } from "@/components/transactions/CategoryPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useCategories, useDeleteCategory } from "@/hooks/use-categories";
-import type { Category, TransactionType } from "@/types";
+import type { Category } from "@/types";
 
 function CategoryRow({ category, onEdit }: { category: Category; onEdit: () => void }) {
   const { locale, t } = useLanguage();
@@ -109,12 +109,12 @@ export default function CategoriesSettingsPage() {
   const { data: categories = [] } = useCategories();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | undefined>(undefined);
-  const [defaultType, setDefaultType] = useState<TransactionType>("expense");
+  const [defaultType, setDefaultType] = useState<"expense" | "income">("expense");
 
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const incomeCategories = categories.filter((c) => c.type === "income");
 
-  function openNew(type: TransactionType) {
+  function openNew(type: "expense" | "income") {
     setEditingCategory(undefined);
     setDefaultType(type);
     setDialogOpen(true);

@@ -16,10 +16,11 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { CategoryIcon, categoryName } from "@/components/transactions/CategoryPicker";
+import { AccountIcon } from "@/components/accounts/AccountIconPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDeleteTransaction } from "@/hooks/use-transactions";
 import { cn, formatCurrency, formatDisplayDate } from "@/lib/utils";
-import type { Category, TransactionWithTags } from "@/types";
+import type { Account, Category, TransactionWithTags } from "@/types";
 
 const PRIORITY_DOT: Record<string, string> = {
   high: "bg-destructive",
@@ -30,9 +31,13 @@ const PRIORITY_DOT: Record<string, string> = {
 export function TransactionListItem({
   transaction,
   category,
+  fromAccount,
+  toAccount,
 }: {
   transaction: TransactionWithTags;
   category: Category | undefined;
+  fromAccount?: Account;
+  toAccount?: Account;
 }) {
   const { locale, t } = useLanguage();
   const deleteTransaction = useDeleteTransaction();
@@ -59,12 +64,17 @@ export function TransactionListItem({
     <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3.5 shadow-sm">
       <span
         className="relative flex size-11 shrink-0 items-center justify-center rounded-full"
-        style={{
-          backgroundColor: `${category?.color ?? "#6B7280"}22`,
-          color: category?.color ?? "#6B7280",
-        }}
+        style={
+          transaction.type === "transfer"
+            ? { backgroundColor: "#6B728022", color: "#6B7280" }
+            : { backgroundColor: `${category?.color ?? "#6B7280"}22`, color: category?.color ?? "#6B7280" }
+        }
       >
-        <CategoryIcon name={category?.icon ?? "MoreHorizontal"} className="size-5" />
+        {transaction.type === "transfer" ? (
+          <AccountIcon name="ArrowLeftRight" className="size-5" />
+        ) : (
+          <CategoryIcon name={category?.icon ?? "MoreHorizontal"} className="size-5" />
+        )}
         {transaction.priority && (
           <span
             className={cn(
@@ -77,7 +87,11 @@ export function TransactionListItem({
 
       <Link href={`/transactions/${transaction.id}/edit`} className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">
-          {category ? categoryName(category, locale) : "—"}
+          {transaction.type === "transfer"
+            ? `${fromAccount?.name ?? "?"} → ${toAccount?.name ?? "?"}`
+            : category
+              ? categoryName(category, locale)
+              : "—"}
         </p>
         <p className="truncate text-xs text-muted-foreground">{subtitleParts.join(" · ")}</p>
       </Link>

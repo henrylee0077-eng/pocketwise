@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CategoryPicker } from "@/components/transactions/CategoryPicker";
+import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { PaymentMethodPicker } from "@/components/transactions/PaymentMethodPicker";
 import { PriorityPicker } from "@/components/transactions/PriorityPicker";
 import { TagPicker } from "@/components/transactions/TagPicker";
@@ -55,6 +56,8 @@ export function TransactionForm({
       amount: transaction ? Number(transaction.amount) : undefined,
       categoryId: transaction?.category_id ?? "",
       paymentMethodId: transaction?.payment_method_id ?? "",
+      accountId: transaction?.account_id ?? "",
+      toAccountId: transaction?.to_account_id ?? "",
       priority: transaction?.priority ?? "",
       date: transaction?.expense_date ?? todayIso(),
       merchant: transaction?.merchant ?? "",
@@ -66,6 +69,8 @@ export function TransactionForm({
   const type = watch("type");
   const categoryId = watch("categoryId");
   const paymentMethodId = watch("paymentMethodId");
+  const accountId = watch("accountId");
+  const toAccountId = watch("toAccountId");
   const priority = watch("priority");
   const tagIds = watch("tagIds");
 
@@ -90,6 +95,7 @@ export function TransactionForm({
     if (nextType === type) return;
     setValue("type", nextType);
     setValue("categoryId", "");
+    setValue("toAccountId", "");
   }
 
   async function onSubmit(values: TransactionFormValues) {
@@ -115,8 +121,8 @@ export function TransactionForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
-      <div className="grid grid-cols-2 gap-2">
-        {(["expense", "income"] as const).map((option) => (
+      <div className="grid grid-cols-3 gap-2">
+        {(["expense", "income", "transfer"] as const).map((option) => (
           <button
             key={option}
             type="button"
@@ -126,11 +132,19 @@ export function TransactionForm({
               type === option
                 ? option === "expense"
                   ? "border-destructive/40 bg-destructive/10 text-destructive"
-                  : "border-primary/40 bg-primary/10 text-primary"
+                  : option === "income"
+                    ? "border-primary/40 bg-primary/10 text-primary"
+                    : "border-foreground/30 bg-secondary text-foreground"
                 : "border-border bg-card text-muted-foreground hover:bg-secondary",
             )}
           >
-            {t(option === "expense" ? "transactions.typeExpense" : "transactions.typeIncome")}
+            {t(
+              option === "expense"
+                ? "transactions.typeExpense"
+                : option === "income"
+                  ? "transactions.typeIncome"
+                  : "transactions.typeTransfer",
+            )}
           </button>
         ))}
       </div>
@@ -153,18 +167,43 @@ export function TransactionForm({
         {errors.amount && <p className="text-sm text-destructive">{errors.amount.message}</p>}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>{t("expenses.category")}</Label>
-        <CategoryPicker
-          categories={categoriesForType}
-          value={categoryId}
-          onChange={(id) => setValue("categoryId", id, { shouldValidate: true })}
-          summary={summary}
-        />
-        {errors.categoryId && (
-          <p className="text-sm text-destructive">{errors.categoryId.message}</p>
-        )}
-      </div>
+      {type === "transfer" ? (
+        <div className="grid grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2">
+            <Label>{t("transactions.fromAccount")}</Label>
+            <AccountPicker value={accountId ?? ""} onChange={(id) => setValue("accountId", id, { shouldValidate: true })} />
+            {errors.accountId && <p className="text-sm text-destructive">{errors.accountId.message}</p>}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>{t("transactions.toAccount")}</Label>
+            <AccountPicker
+              value={toAccountId ?? ""}
+              onChange={(id) => setValue("toAccountId", id, { shouldValidate: true })}
+              excludeId={accountId || undefined}
+            />
+            {errors.toAccountId && <p className="text-sm text-destructive">{errors.toAccountId.message}</p>}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-col gap-2">
+            <Label>{t("expenses.category")}</Label>
+            <CategoryPicker
+              categories={categoriesForType}
+              value={categoryId ?? ""}
+              onChange={(id) => setValue("categoryId", id, { shouldValidate: true })}
+              summary={summary}
+            />
+            {errors.categoryId && (
+              <p className="text-sm text-destructive">{errors.categoryId.message}</p>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label>{t("transactions.account")}</Label>
+            <AccountPicker value={accountId ?? ""} onChange={(id) => setValue("accountId", id)} />
+          </div>
+        </>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">

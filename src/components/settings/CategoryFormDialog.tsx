@@ -21,7 +21,7 @@ import { CategoryColorPicker } from "@/components/settings/CategoryColorPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useCreateCategory, useUpdateCategory } from "@/hooks/use-categories";
 import { categoryFormSchema, type CategoryFormValues } from "@/lib/validations";
-import type { Category, TransactionType } from "@/types";
+import type { Category } from "@/types";
 
 export function CategoryFormDialog({
   open,
@@ -32,7 +32,7 @@ export function CategoryFormDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   category?: Category;
-  defaultType: TransactionType;
+  defaultType: "expense" | "income";
 }) {
   const { t } = useLanguage();
   const createCategory = useCreateCategory();

@@ -11,6 +11,8 @@ import { BudgetWarningBanner } from "@/components/dashboard/BudgetWarningBanner"
 import { BudgetEnforcementBanner } from "@/components/dashboard/BudgetEnforcementBanner";
 import { CategoryBudgetAlerts } from "@/components/dashboard/CategoryBudgetAlerts";
 import { TransactionList } from "@/components/transactions/TransactionList";
+import { NetWorthSummary } from "@/components/accounts/NetWorthSummary";
+import { useAccounts } from "@/hooks/use-accounts";
 import { Button } from "@/components/ui/button";
 
 function useGreetingKey() {
@@ -24,6 +26,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { summary, transactions, isLoading } = useDashboard();
+  const { data: accounts = [] } = useAccounts();
   const greetingKey = useGreetingKey();
 
   const firstName =
@@ -63,6 +66,7 @@ export default function DashboardPage() {
 
       <SummaryCards summary={summary} />
       <RecommendedDailyBudget summary={summary} />
+      <NetWorthSummary accounts={accounts} />
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

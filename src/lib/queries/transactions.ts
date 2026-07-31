@@ -35,6 +35,9 @@ export async function fetchTransactionsForRange(
   if (filters.paymentMethodIds && filters.paymentMethodIds.length > 0) {
     query = query.in("payment_method_id", filters.paymentMethodIds);
   }
+  if (filters.accountIds && filters.accountIds.length > 0) {
+    query = query.in("account_id", filters.accountIds);
+  }
   if (filters.priority) query = query.eq("priority", filters.priority);
   if (filters.merchantQuery && filters.merchantQuery.trim().length > 0) {
     query = query.ilike("merchant", `%${filters.merchantQuery.trim()}%`);
@@ -99,7 +102,7 @@ export async function createTransaction(
     .from("transactions")
     .insert({
       user_id: userId,
-      category_id: values.categoryId,
+      category_id: values.type === "transfer" ? null : values.categoryId || null,
       amount: values.amount,
       type: values.type,
       expense_date: values.date,
@@ -107,6 +110,8 @@ export async function createTransaction(
       priority: values.priority || null,
       merchant: values.merchant || null,
       note: values.note || null,
+      account_id: values.accountId || null,
+      to_account_id: values.type === "transfer" ? values.toAccountId || null : null,
     })
     .select("*")
     .single();
@@ -128,7 +133,7 @@ export async function updateTransaction(
   const { data, error } = await supabase
     .from("transactions")
     .update({
-      category_id: values.categoryId,
+      category_id: values.type === "transfer" ? null : values.categoryId || null,
       amount: values.amount,
       type: values.type,
       expense_date: values.date,
@@ -136,6 +141,8 @@ export async function updateTransaction(
       priority: values.priority || null,
       merchant: values.merchant || null,
       note: values.note || null,
+      account_id: values.accountId || null,
+      to_account_id: values.type === "transfer" ? values.toAccountId || null : null,
     })
     .eq("id", id)
     .select("*")

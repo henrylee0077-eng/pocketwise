@@ -96,6 +96,7 @@ export function TransactionFilterBar({
                 <SelectItem value={ALL}>{t("expenses.filterAll")}</SelectItem>
                 <SelectItem value="expense">{t("transactions.typeExpense")}</SelectItem>
                 <SelectItem value="income">{t("transactions.typeIncome")}</SelectItem>
+                <SelectItem value="transfer">{t("transactions.typeTransfer")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

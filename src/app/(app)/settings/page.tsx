@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, LogOut, Tag, Tags } from "lucide-react";
+import { ChevronRight, LogOut, Repeat, Tag, Tags, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
@@ -41,6 +41,22 @@ export default function SettingsPage() {
           >
             <Tag className="size-4 text-muted-foreground" />
             <span className="flex-1">{t("transactions.tags")}</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+          <Link
+            href="/settings/accounts"
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            <Wallet className="size-4 text-muted-foreground" />
+            <span className="flex-1">{t("accounts.title")}</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
+          <Link
+            href="/settings/recurring"
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            <Repeat className="size-4 text-muted-foreground" />
+            <span className="flex-1">{t("recurring.title")}</span>
             <ChevronRight className="size-4 text-muted-foreground" />
           </Link>
         </CardContent>

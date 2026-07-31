@@ -1,27 +1,46 @@
 import { z } from "zod";
 
-export const transactionFormSchema = z.object({
-  type: z.enum(["expense", "income"]),
-  amount: z.coerce
-    .number({ error: "Enter an amount." })
-    .positive({ message: "Enter an amount greater than 0." })
-    .max(999_999_999, { message: "That amount looks too large." }),
-  categoryId: z.string().min(1, { message: "Choose a category." }),
-  paymentMethodId: z.string().optional().or(z.literal("")),
-  priority: z.enum(["high", "medium", "low"]).optional().or(z.literal("")),
-  date: z.string().min(1, { message: "Choose a date." }),
-  merchant: z
-    .string()
-    .max(200, { message: "Merchant must be 200 characters or fewer." })
-    .optional()
-    .or(z.literal("")),
-  note: z
-    .string()
-    .max(500, { message: "Notes must be 500 characters or fewer." })
-    .optional()
-    .or(z.literal("")),
-  tagIds: z.array(z.string()).optional().default([]),
-});
+export const transactionFormSchema = z
+  .object({
+    type: z.enum(["expense", "income", "transfer"]),
+    amount: z.coerce
+      .number({ error: "Enter an amount." })
+      .positive({ message: "Enter an amount greater than 0." })
+      .max(999_999_999, { message: "That amount looks too large." }),
+    categoryId: z.string().optional().or(z.literal("")),
+    paymentMethodId: z.string().optional().or(z.literal("")),
+    accountId: z.string().optional().or(z.literal("")),
+    toAccountId: z.string().optional().or(z.literal("")),
+    priority: z.enum(["high", "medium", "low"]).optional().or(z.literal("")),
+    date: z.string().min(1, { message: "Choose a date." }),
+    merchant: z
+      .string()
+      .max(200, { message: "Merchant must be 200 characters or fewer." })
+      .optional()
+      .or(z.literal("")),
+    note: z
+      .string()
+      .max(500, { message: "Notes must be 500 characters or fewer." })
+      .optional()
+      .or(z.literal("")),
+    tagIds: z.array(z.string()).optional().default([]),
+  })
+  .superRefine((values, ctx) => {
+    if (values.type !== "transfer" && !values.categoryId) {
+      ctx.addIssue({ code: "custom", path: ["categoryId"], message: "Choose a category." });
+    }
+    if (values.type === "transfer") {
+      if (!values.accountId) {
+        ctx.addIssue({ code: "custom", path: ["accountId"], message: "Choose a source account." });
+      }
+      if (!values.toAccountId) {
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Choose a destination account." });
+      }
+      if (values.accountId && values.toAccountId && values.accountId === values.toAccountId) {
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Pick two different accounts." });
+      }
+    }
+  });
 
 /** Raw shape as it exists in form state before zod coerces string -> number. */
 export type TransactionFormInput = z.input<typeof transactionFormSchema>;
@@ -78,3 +97,85 @@ export const tagFormSchema = z.object({
 });
 
 export type TagFormValues = z.infer<typeof tagFormSchema>;
+
+const optionalAmount = (max = 999_999_999) =>
+  z.preprocess(
+    (val) => (val === "" || val === null || val === undefined ? undefined : val),
+    z.coerce.number().max(max, { message: "That amount looks too large." }).optional(),
+  );
+
+const optionalDayOfMonth = z.preprocess(
+  (val) => (val === "" || val === null || val === undefined ? undefined : val),
+  z.coerce.number().int().min(1, { message: "1-31" }).max(31, { message: "1-31" }).optional(),
+);
+
+const optionalPercent = z.preprocess(
+  (val) => (val === "" || val === null || val === undefined ? undefined : val),
+  z.coerce.number().positive().max(100, { message: "Max 100%." }).optional(),
+);
+
+export const accountFormSchema = z.object({
+  name: z.string().min(1, { message: "Enter an account name." }).max(60),
+  type: z.enum(["cash", "bank", "ewallet", "investment", "credit_card", "loan", "installment"]),
+  institution: z.string().max(100).optional().or(z.literal("")),
+  openingBalance: z.coerce
+    .number({ error: "Enter a balance." })
+    .min(-999_999_999, { message: "That amount looks too large." })
+    .max(999_999_999, { message: "That amount looks too large." }),
+  color: hexColor,
+  icon: z.string().min(1, { message: "Choose an icon." }),
+  creditLimit: optionalAmount(),
+  interestRate: optionalPercent,
+  statementDay: optionalDayOfMonth,
+  paymentDueDay: optionalDayOfMonth,
+  minPaymentPercent: optionalPercent,
+});
+
+export type AccountFormInput = z.input<typeof accountFormSchema>;
+export type AccountFormValues = z.output<typeof accountFormSchema>;
+
+export const recurringTransactionFormSchema = z
+  .object({
+    type: z.enum(["expense", "income", "transfer"]),
+    amount: z.coerce
+      .number({ error: "Enter an amount." })
+      .positive({ message: "Enter an amount greater than 0." })
+      .max(999_999_999, { message: "That amount looks too large." }),
+    categoryId: z.string().optional().or(z.literal("")),
+    paymentMethodId: z.string().optional().or(z.literal("")),
+    accountId: z.string().optional().or(z.literal("")),
+    toAccountId: z.string().optional().or(z.literal("")),
+    priority: z.enum(["high", "medium", "low"]).optional().or(z.literal("")),
+    merchant: z.string().max(200).optional().or(z.literal("")),
+    note: z.string().max(500).optional().or(z.literal("")),
+    frequency: z.enum(["daily", "weekly", "monthly", "yearly"]),
+    intervalCount: z.coerce
+      .number({ error: "Enter a number." })
+      .int()
+      .positive({ message: "Must be at least 1." })
+      .max(365, { message: "That's too frequent to be useful." }),
+    startDate: z.string().min(1, { message: "Choose a start date." }),
+    endDate: z.string().optional().or(z.literal("")),
+  })
+  .superRefine((values, ctx) => {
+    if (values.type !== "transfer" && !values.categoryId) {
+      ctx.addIssue({ code: "custom", path: ["categoryId"], message: "Choose a category." });
+    }
+    if (values.type === "transfer") {
+      if (!values.accountId) {
+        ctx.addIssue({ code: "custom", path: ["accountId"], message: "Choose a source account." });
+      }
+      if (!values.toAccountId) {
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Choose a destination account." });
+      }
+      if (values.accountId && values.toAccountId && values.accountId === values.toAccountId) {
+        ctx.addIssue({ code: "custom", path: ["toAccountId"], message: "Pick two different accounts." });
+      }
+    }
+    if (values.endDate && values.endDate < values.startDate) {
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "End date must be after the start date." });
+    }
+  });
+
+export type RecurringTransactionFormInput = z.input<typeof recurringTransactionFormSchema>;
+export type RecurringTransactionFormValues = z.output<typeof recurringTransactionFormSchema>;

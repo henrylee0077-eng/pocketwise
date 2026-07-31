@@ -1,7 +1,8 @@
 // Hand-written mirror of the Supabase schema defined in
-// supabase/migrations/0001_init.sql and 0002_transactions_phase1.sql. If the
-// schema changes, update this file (or, once the project is linked,
-// regenerate it with: supabase gen types typescript --linked > src/types/database.ts
+// supabase/migrations/0001_init.sql, 0002_transactions_phase1.sql, and
+// 0003_phase2.sql. If the schema changes, update this file (or, once the
+// project is linked, regenerate it with:
+// supabase gen types typescript --linked > src/types/database.ts
 export type Json =
   | string
   | number
@@ -148,49 +149,121 @@ export interface Database {
         };
         Relationships: [];
       };
-      transactions: {
+      accounts: {
         Row: {
           id: string;
           user_id: string;
-          category_id: string;
-          amount: number;
+          name: string;
+          type: "cash" | "bank" | "ewallet" | "investment" | "credit_card" | "loan" | "installment";
+          institution: string | null;
           currency: string;
-          note: string | null;
-          expense_date: string;
-          type: "expense" | "income";
-          payment_method_id: string | null;
-          priority: "high" | "medium" | "low" | null;
-          merchant: string | null;
+          opening_balance: number;
+          color: string;
+          icon: string;
+          credit_limit: number | null;
+          interest_rate: number | null;
+          statement_day: number | null;
+          payment_due_day: number | null;
+          min_payment_percent: number | null;
+          is_archived: boolean;
+          sort_order: number;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           user_id: string;
-          category_id: string;
-          amount: number;
+          name: string;
+          type: "cash" | "bank" | "ewallet" | "investment" | "credit_card" | "loan" | "installment";
+          institution?: string | null;
           currency?: string;
-          note?: string | null;
-          expense_date?: string;
-          type?: "expense" | "income";
-          payment_method_id?: string | null;
-          priority?: "high" | "medium" | "low" | null;
-          merchant?: string | null;
+          opening_balance?: number;
+          color?: string;
+          icon?: string;
+          credit_limit?: number | null;
+          interest_rate?: number | null;
+          statement_day?: number | null;
+          payment_due_day?: number | null;
+          min_payment_percent?: number | null;
+          is_archived?: boolean;
+          sort_order?: number;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           user_id?: string;
-          category_id?: string;
+          name?: string;
+          type?: "cash" | "bank" | "ewallet" | "investment" | "credit_card" | "loan" | "installment";
+          institution?: string | null;
+          currency?: string;
+          opening_balance?: number;
+          color?: string;
+          icon?: string;
+          credit_limit?: number | null;
+          interest_rate?: number | null;
+          statement_day?: number | null;
+          payment_due_day?: number | null;
+          min_payment_percent?: number | null;
+          is_archived?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          category_id: string | null;
+          amount: number;
+          currency: string;
+          note: string | null;
+          expense_date: string;
+          type: "expense" | "income" | "transfer";
+          payment_method_id: string | null;
+          priority: "high" | "medium" | "low" | null;
+          merchant: string | null;
+          account_id: string | null;
+          to_account_id: string | null;
+          recurring_transaction_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          category_id?: string | null;
+          amount: number;
+          currency?: string;
+          note?: string | null;
+          expense_date?: string;
+          type?: "expense" | "income" | "transfer";
+          payment_method_id?: string | null;
+          priority?: "high" | "medium" | "low" | null;
+          merchant?: string | null;
+          account_id?: string | null;
+          to_account_id?: string | null;
+          recurring_transaction_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          category_id?: string | null;
           amount?: number;
           currency?: string;
           note?: string | null;
           expense_date?: string;
-          type?: "expense" | "income";
+          type?: "expense" | "income" | "transfer";
           payment_method_id?: string | null;
           priority?: "high" | "medium" | "low" | null;
           merchant?: string | null;
+          account_id?: string | null;
+          to_account_id?: string | null;
+          recurring_transaction_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -207,6 +280,27 @@ export interface Database {
             columns: ["payment_method_id"];
             isOneToOne: false;
             referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_to_account_id_fkey";
+            columns: ["to_account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "transactions_recurring_transaction_id_fkey";
+            columns: ["recurring_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "recurring_transactions";
             referencedColumns: ["id"];
           },
         ];
@@ -312,8 +406,131 @@ export interface Database {
           },
         ];
       };
+      recurring_transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: "expense" | "income" | "transfer";
+          amount: number;
+          category_id: string | null;
+          account_id: string | null;
+          to_account_id: string | null;
+          payment_method_id: string | null;
+          priority: "high" | "medium" | "low" | null;
+          merchant: string | null;
+          note: string | null;
+          frequency: "daily" | "weekly" | "monthly" | "yearly";
+          interval_count: number;
+          start_date: string;
+          end_date: string | null;
+          next_run_date: string;
+          last_generated_date: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type?: "expense" | "income" | "transfer";
+          amount: number;
+          category_id?: string | null;
+          account_id?: string | null;
+          to_account_id?: string | null;
+          payment_method_id?: string | null;
+          priority?: "high" | "medium" | "low" | null;
+          merchant?: string | null;
+          note?: string | null;
+          frequency: "daily" | "weekly" | "monthly" | "yearly";
+          interval_count?: number;
+          start_date: string;
+          end_date?: string | null;
+          next_run_date: string;
+          last_generated_date?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          type?: "expense" | "income" | "transfer";
+          amount?: number;
+          category_id?: string | null;
+          account_id?: string | null;
+          to_account_id?: string | null;
+          payment_method_id?: string | null;
+          priority?: "high" | "medium" | "low" | null;
+          merchant?: string | null;
+          note?: string | null;
+          frequency?: "daily" | "weekly" | "monthly" | "yearly";
+          interval_count?: number;
+          start_date?: string;
+          end_date?: string | null;
+          next_run_date?: string;
+          last_generated_date?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "recurring_transactions_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "recurring_transactions_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "recurring_transactions_to_account_id_fkey";
+            columns: ["to_account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "recurring_transactions_payment_method_id_fkey";
+            columns: ["payment_method_id"];
+            isOneToOne: false;
+            referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
-    Views: Record<string, never>;
+    Views: {
+      account_balances: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          type: "cash" | "bank" | "ewallet" | "investment" | "credit_card" | "loan" | "installment";
+          institution: string | null;
+          currency: string;
+          color: string;
+          icon: string;
+          credit_limit: number | null;
+          interest_rate: number | null;
+          statement_day: number | null;
+          payment_due_day: number | null;
+          min_payment_percent: number | null;
+          is_archived: boolean;
+          sort_order: number;
+          opening_balance: number;
+          current_balance: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Relationships: [];
+      };
+    };
     Functions: Record<string, never>;
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

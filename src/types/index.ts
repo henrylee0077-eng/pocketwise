@@ -7,9 +7,23 @@ export type Tag = Database["public"]["Tables"]["tags"]["Row"];
 export type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
 export type Budget = Database["public"]["Tables"]["budgets"]["Row"];
 export type CategoryBudget = Database["public"]["Tables"]["category_budgets"]["Row"];
+export type Account = Database["public"]["Tables"]["accounts"]["Row"];
+export type AccountBalance = Database["public"]["Views"]["account_balances"]["Row"];
+export type RecurringTransaction = Database["public"]["Tables"]["recurring_transactions"]["Row"];
 
-export type TransactionType = "expense" | "income";
+export type TransactionType = "expense" | "income" | "transfer";
 export type TransactionPriority = "high" | "medium" | "low";
+export type AccountType =
+  | "cash"
+  | "bank"
+  | "ewallet"
+  | "investment"
+  | "credit_card"
+  | "loan"
+  | "installment";
+export const ASSET_ACCOUNT_TYPES: AccountType[] = ["cash", "bank", "ewallet", "investment"];
+export const LIABILITY_ACCOUNT_TYPES: AccountType[] = ["credit_card", "loan", "installment"];
+export type RecurringFrequency = "daily" | "weekly" | "monthly" | "yearly";
 
 export type CategoryKey =
   | "meals"
@@ -69,9 +83,17 @@ export interface TransactionFilters {
   type?: TransactionType;
   categoryIds?: string[];
   paymentMethodIds?: string[];
+  accountIds?: string[];
   tagIds?: string[];
   priority?: TransactionPriority;
   merchantQuery?: string;
   dateFrom?: string;
   dateTo?: string;
+}
+
+export interface NetWorthSummary {
+  totalAssets: number;
+  totalLiabilities: number;
+  netWorth: number;
+  accounts: AccountBalance[];
 }
