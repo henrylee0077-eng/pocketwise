@@ -15,7 +15,7 @@ const responseSchema = {
       type: Type.STRING,
       enum: ["ready", "needs_clarification"],
       description:
-        "'ready' once you're confident about the amount and (for expense/income) a category, or (for transfer) both accounts. 'needs_clarification' if any of that is genuinely missing or ambiguous from the conversation so far.",
+        "'ready' once every required field for this transaction's type is confidently known (see rules below). 'needs_clarification' if any required field is genuinely missing or ambiguous from the conversation so far.",
     },
     clarifyingQuestion: {
       type: Type.STRING,
@@ -112,14 +112,20 @@ ${accountList || "(none)"}
 Available payment methods (id :: name):
 ${paymentMethodList || "(none)"}
 
-This is a multi-turn conversation. The user's first message is a command like "today lunch RM20" or "pay HSBC credit card RM200.40 for a bag". If you already have enough to record a sensible transaction, set status to "ready" — the app will save it immediately with no further confirmation, so only mark "ready" when you're actually confident. If something essential is missing or ambiguous (usually the amount, or which category/account it belongs to), set status to "needs_clarification" and ask exactly ONE short, specific, friendly question. The user's next message will answer that question — use the whole conversation so far to fill in the final transaction.
+This is a multi-turn conversation. The user's first message is a command like "today lunch RM20" or "pay HSBC credit card RM200.40 for a bag". Once every required field below is confidently known, set status to "ready" — the app will save it immediately with no further confirmation, so only mark "ready" when every required field is actually filled in. Otherwise set status to "needs_clarification" and ask exactly ONE short, specific, friendly question about the single most important missing field. The user's next message will answer that question — use the whole conversation so far to fill in the final transaction.
+
+Required fields before status can be "ready":
+- expense: amount, category, merchant, payment method, AND date — all five.
+- income: amount, category, merchant, payment method, AND date — all five.
+- transfer: amount, source account, AND destination account.
 
 Rules:
 - "pay credit card X for <purchase>" or "spent RM.. on credit card X" is an EXPENSE charged to account X, NOT a transfer — it increases what the user owes on that card.
 - Only use type "transfer" when the user is explicitly moving money between two of their own listed accounts.
 - Always pick the single best-matching id from the lists above, or an empty string if nothing fits well. Never invent an id that isn't listed.
-- Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date; default to the reference date if no date is mentioned.
-- Never ask more than one question per turn, and never ask about fields that already have a sensible default (date, priority, merchant, note, payment method) — only ask about amount or category/account when truly unclear.
+- Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date; default to the reference date if no date is mentioned — date is the one required field that's satisfied by this default, so only ask about it if the user's phrasing is genuinely ambiguous (e.g. "the 30th" with no clear month).
+- For expense/income, merchant and payment method must be explicit or clearly implied by the conversation — do NOT default or guess them silently. If either is missing, ask about it.
+- Never ask more than one question per turn. Priority and note are always optional — never ask about those.
 
 Respond only with JSON matching the schema.`;
 
@@ -188,8 +194,9 @@ Respond only with JSON matching the schema.`;
   };
 
   // Final sanity check even after the model said "ready" — if id resolution
-  // dropped something essential, ask rather than silently save a broken
-  // transaction.
+  // dropped something essential (or the model was overconfident), ask
+  // rather than silently save an incomplete transaction. Checked in a fixed
+  // order so only one question is ever asked per turn.
   if (draft.type === "transfer") {
     if (!draft.accountId || !draft.toAccountId) {
       return NextResponse.json({
@@ -197,11 +204,25 @@ Respond only with JSON matching the schema.`;
         question: "Which two accounts should this transfer be between?",
       });
     }
-  } else if (!draft.categoryId) {
-    return NextResponse.json({
-      status: "needs_clarification",
-      question: "Which category should this go under?",
-    });
+  } else {
+    if (!draft.categoryId) {
+      return NextResponse.json({
+        status: "needs_clarification",
+        question: "Which category should this go under?",
+      });
+    }
+    if (!draft.paymentMethodId) {
+      return NextResponse.json({
+        status: "needs_clarification",
+        question: "How did you pay for this — cash, debit, credit card, e-wallet, or bank transfer?",
+      });
+    }
+    if (!draft.merchant.trim()) {
+      return NextResponse.json({
+        status: "needs_clarification",
+        question: "Who was this with, or where — the merchant or payee name?",
+      });
+    }
   }
 
   return NextResponse.json({ status: "ready", draft });
