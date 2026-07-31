@@ -1,8 +1,13 @@
 // Hand-written mirror of the Supabase schema defined in
-// supabase/migrations/0001_init.sql, 0002_transactions_phase1.sql, and
-// 0003_phase2.sql. If the schema changes, update this file (or, once the
-// project is linked, regenerate it with:
+// supabase/migrations/0001_init.sql, 0002_transactions_phase1.sql,
+// 0003_phase2.sql, and 0004_pin_and_reset.sql. If the schema changes,
+// update this file (or, once the project is linked, regenerate it with:
 // supabase gen types typescript --linked > src/types/database.ts
+//
+// Note: profiles.pin_hash is deliberately NOT typed here. All PIN
+// hashing/verification happens server-side inside Postgres functions
+// (set_pin/verify_pin/clear_pin) — the client only ever needs the
+// generated `pin_enabled` boolean, never the hash itself.
 export type Json =
   | string
   | number
@@ -22,6 +27,7 @@ export interface Database {
           preferred_language: "en" | "zh";
           preferred_currency: string;
           household_id: string | null;
+          pin_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -531,7 +537,24 @@ export interface Database {
         Relationships: [];
       };
     };
-    Functions: Record<string, never>;
+    Functions: {
+      set_pin: {
+        Args: { new_pin: string };
+        Returns: void;
+      };
+      verify_pin: {
+        Args: { candidate: string };
+        Returns: Json;
+      };
+      clear_pin: {
+        Args: Record<string, never>;
+        Returns: void;
+      };
+      reset_my_account: {
+        Args: Record<string, never>;
+        Returns: void;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

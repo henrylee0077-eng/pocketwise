@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { AppLockSection } from "@/components/settings/AppLockSection";
+import { ResetAccountSection } from "@/components/settings/ResetAccountSection";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
@@ -92,6 +94,10 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+
+      <AppLockSection />
+
+      <ResetAccountSection />
     </div>
   );
 }
