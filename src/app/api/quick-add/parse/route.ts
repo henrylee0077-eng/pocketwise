@@ -1,39 +1,60 @@
+import { Type } from "@google/genai";
 import { NextResponse } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { createAnthropicClient, QUICK_ADD_MODEL } from "@/lib/anthropic";
+import { createGoogleAIClient, QUICK_ADD_MODEL } from "@/lib/google-ai";
 import { fetchCategories } from "@/lib/queries/categories";
 import { fetchAccountBalances } from "@/lib/queries/accounts";
 import { fetchPaymentMethods } from "@/lib/queries/payment-methods";
 import { quickAddExtractionSchema, quickAddRequestSchema } from "@/lib/validations";
 import { todayIso } from "@/lib/utils";
 
-const TOOL_NAME = "extract_transaction";
-
-const tool = {
-  name: TOOL_NAME,
-  description: "Extract a structured personal-finance transaction from the user's free-text command.",
-  input_schema: {
-    type: "object" as const,
-    properties: {
-      type: {
-        type: "string",
-        enum: ["expense", "income", "transfer"],
-        description:
-          "expense = money spent (including credit card purchases charged to a card account); income = money received; transfer = explicitly moving money between two of the user's own named accounts (e.g. 'transfer RM500 from Maybank to HSBC').",
-      },
-      amount: { type: "number", description: "Positive number, currency symbols/codes stripped." },
-      date: { type: "string", description: "yyyy-MM-dd, resolved from relative words like today/yesterday against the reference date given." },
-      categoryId: { type: "string", description: "Exact id from the provided category list, or empty string if none fits or type is transfer." },
-      accountId: { type: "string", description: "Exact id from the provided account list for the account this affects (or the 'from' account for a transfer), or empty string." },
-      toAccountId: { type: "string", description: "Only for transfers: exact id of the destination account, or empty string." },
-      paymentMethodId: { type: "string", description: "Exact id from the provided payment method list, or empty string." },
-      merchant: { type: "string", description: "Merchant/payee name if mentioned, else empty string." },
-      note: { type: "string", description: "Any extra detail worth keeping as a note, else empty string." },
-      priority: { type: "string", description: "'high', 'medium', 'low', or empty string if not implied." },
+const responseSchema = {
+  type: Type.OBJECT,
+  properties: {
+    type: {
+      type: Type.STRING,
+      enum: ["expense", "income", "transfer"],
+      description:
+        "expense = money spent (including credit card purchases charged to a card account); income = money received; transfer = explicitly moving money between two of the user's own named accounts (e.g. 'transfer RM500 from Maybank to HSBC').",
     },
-    required: ["type", "amount", "date", "categoryId", "accountId", "toAccountId", "paymentMethodId", "merchant", "note", "priority"],
+    amount: { type: Type.NUMBER, description: "Positive number, currency symbols/codes stripped." },
+    date: {
+      type: Type.STRING,
+      description: "yyyy-MM-dd, resolved from relative words like today/yesterday against the reference date given.",
+    },
+    categoryId: {
+      type: Type.STRING,
+      description: "Exact id from the provided category list, or empty string if none fits or type is transfer.",
+    },
+    accountId: {
+      type: Type.STRING,
+      description:
+        "Exact id from the provided account list for the account this affects (or the 'from' account for a transfer), or empty string.",
+    },
+    toAccountId: {
+      type: Type.STRING,
+      description: "Only for transfers: exact id of the destination account, or empty string.",
+    },
+    paymentMethodId: {
+      type: Type.STRING,
+      description: "Exact id from the provided payment method list, or empty string.",
+    },
+    merchant: { type: Type.STRING, description: "Merchant/payee name if mentioned, else empty string." },
+    note: { type: Type.STRING, description: "Any extra detail worth keeping as a note, else empty string." },
+    priority: { type: Type.STRING, description: "'high', 'medium', 'low', or empty string if not implied." },
   },
+  required: [
+    "type",
+    "amount",
+    "date",
+    "categoryId",
+    "accountId",
+    "toAccountId",
+    "paymentMethodId",
+    "merchant",
+    "note",
+    "priority",
+  ],
 };
 
 export async function POST(request: Request) {
@@ -67,7 +88,7 @@ export async function POST(request: Request) {
 
   const today = todayIso();
 
-  const systemPrompt = `You extract structured personal expense-tracker transactions from short free-text commands, in English or Chinese. The app's currency is Malaysian Ringgit (RM/MYR). Today's reference date is ${today}.
+  const systemInstruction = `You extract structured personal expense-tracker transactions from short free-text commands, in English or Chinese. The app's currency is Malaysian Ringgit (RM/MYR). Today's reference date is ${today}.
 
 Available categories (id :: name):
 ${categoryList || "(none)"}
@@ -84,26 +105,38 @@ Rules:
 - Always pick the single best-matching id from the lists above, or an empty string if nothing fits well. Never invent an id that isn't listed.
 - Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date.
 
-Call the ${TOOL_NAME} tool with your best extraction.`;
+Respond only with the extracted JSON matching the schema.`;
 
-  const anthropic = createAnthropicClient();
-  const response = await anthropic.messages.create({
-    model: QUICK_ADD_MODEL,
-    max_tokens: 512,
-    system: systemPrompt,
-    messages: [{ role: "user", content: body.data.text }],
-    tools: [tool],
-    tool_choice: { type: "tool", name: TOOL_NAME },
-  });
+  const ai = createGoogleAIClient();
+  let rawJson: string | undefined;
+  try {
+    const response = await ai.models.generateContent({
+      model: QUICK_ADD_MODEL,
+      contents: body.data.text,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema,
+      },
+    });
+    rawJson = response.text;
+  } catch (error) {
+    console.error("quick-add Gemini call failed", error);
+    return NextResponse.json({ error: "Couldn't understand that — try rephrasing." }, { status: 502 });
+  }
 
-  const toolUse = response.content.find(
-    (block): block is Anthropic.ToolUseBlock => block.type === "tool_use",
-  );
-  if (!toolUse) {
+  if (!rawJson) {
     return NextResponse.json({ error: "Couldn't understand that — try rephrasing." }, { status: 422 });
   }
 
-  const parsed = quickAddExtractionSchema.safeParse(toolUse.input);
+  let extractedJson: unknown;
+  try {
+    extractedJson = JSON.parse(rawJson);
+  } catch {
+    return NextResponse.json({ error: "Couldn't understand that — try rephrasing." }, { status: 422 });
+  }
+
+  const parsed = quickAddExtractionSchema.safeParse(extractedJson);
   if (!parsed.success) {
     return NextResponse.json({ error: "Couldn't understand that — try rephrasing." }, { status: 422 });
   }
