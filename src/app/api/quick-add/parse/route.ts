@@ -109,7 +109,7 @@ export async function POST(request: Request) {
     .join("\n");
   const accountList = accounts
     .filter((a) => !a.is_archived)
-    .map((a) => `${a.id} :: ${a.name} (${a.type})`)
+    .map((a) => `${a.id} :: ${a.name}${a.institution ? ` / ${a.institution}` : ""} (${a.type})`)
     .join("\n");
   const paymentMethodList = paymentMethods.map((p) => `${p.id} :: ${p.name_en} / ${p.name_zh}`).join("\n");
 
@@ -120,7 +120,7 @@ export async function POST(request: Request) {
 Available categories (id :: name):
 ${categoryList || "(none)"}
 
-Available accounts (id :: name (type)):
+Available accounts (id :: name / institution (type)):
 ${accountList || "(none)"}
 
 Available payment methods (id :: name):
@@ -132,6 +132,7 @@ Required fields before status can be "ready":
 - expense: amount, category, merchant, payment method, AND date — all five.
 - income: amount, category, merchant, payment method, AND date — all five.
 - transfer: amount, source account, AND destination account.
+- account is NOT in this required list — it's optional — EXCEPT when the user actually named one, in which case see the account-matching rule below (resolve it or ask, don't just skip it).
 
 Rules:
 - "pay credit card X for <purchase>" or "spent RM.. on credit card X" is an EXPENSE charged to account X, NOT a transfer — it increases what the user owes on that card.
@@ -142,6 +143,7 @@ Rules:
 - Category matching: do NOT settle for the generic "Others" (expense) or "Other Income" (income) catch-all just because nothing in the list is a perfect match. If the user's own words name or clearly imply a specific category that isn't in the list (e.g. "pet food", "gym membership", "宠物用品"), leave categoryId empty and instead put a short, clean category name for it (singular, same language the user used) in newCategoryName — treat this as resolved (do not ask a clarifying question just for this; the app will create the category automatically). Only actually use the "Others"/"Other Income" id (with newCategoryName left empty) when the user is genuinely vague about what it even is, or explicitly says something like "other"/"misc"/"其他".
 - Exception: if the resolved category ends up being the "Others"/"Other Income" catch-all itself, merchant is OPTIONAL — do not ask for it in that case, an empty merchant is fine.
 - Payment method matching: match common Malaysian payment rails and their nicknames/abbreviations to the closest listed payment method — e.g. "TNG", "Touch n Go", "touch and go ewallet" → Touch 'n Go eWallet; "grab pay", "grabpay" → GrabPay; "shopee pay", "spay" → ShopeePay; "duitnow qr", "duit now" → DuitNow; "cheque", "check" → Cheque. If the user names a specific payment method/app that genuinely isn't in the list (e.g. a bank's own app, a newer e-wallet), leave paymentMethodId empty and put a short, clean name for it in newPaymentMethodName instead of asking — the app will create it automatically, same as an unlisted category.
+- Account matching (expense/income too, not just transfers): if the user names a wallet/bank/account — by its account name OR its institution (e.g. "Maybank", "into my HSBC account", "TNG wallet balance") — match it against the accounts list (name and institution are both shown) and set accountId, even though account isn't in the strict required-fields list below. This is what makes that specific account's balance actually reflect the transaction, so try hard to resolve it whenever one is mentioned. If the user clearly named an account/bank that doesn't match anything in the list, do NOT silently drop it and do NOT invent a new account (unlike categories/payment methods, an account can't be safely auto-created — it needs a type and starting balance only the user can set up in Settings). Instead ask a short clarifying question naming the closest existing accounts, e.g. "I don't have an account called X — did you mean one of: <list>, or should this not be tied to a specific account?" If the user says no specific account / just cash in hand / doesn't answer meaningfully, leave accountId empty and proceed — it's optional when genuinely not mentioned.
 - Never ask more than one question per turn. Priority and note are always optional — never ask about those.
 
 Respond only with JSON matching the schema.`;
