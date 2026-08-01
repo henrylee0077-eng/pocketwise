@@ -38,6 +38,9 @@ export const en = {
     recentExpenses: "Recent transactions",
     viewAll: "View all",
     noExpensesToday: "No transactions recorded today. Nice and quiet!",
+    accounts: "Accounts",
+    noAccountsYet: "You haven't added any accounts yet.",
+    addAccountCta: "Add an account",
   },
   budgetWarning: {
     title: "Heads up — you're close to your limit",
@@ -332,6 +335,9 @@ export const zh = {
     recentExpenses: "最近记录",
     viewAll: "查看全部",
     noExpensesToday: "今天还没有记录，真清净！",
+    accounts: "账户",
+    noAccountsYet: "你还没有添加任何账户。",
+    addAccountCta: "添加账户",
   },
   budgetWarning: {
     title: "提醒 — 预算即将用完",

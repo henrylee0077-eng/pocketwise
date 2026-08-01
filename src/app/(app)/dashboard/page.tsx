@@ -12,6 +12,7 @@ import { BudgetEnforcementBanner } from "@/components/dashboard/BudgetEnforcemen
 import { CategoryBudgetAlerts } from "@/components/dashboard/CategoryBudgetAlerts";
 import { TransactionList } from "@/components/transactions/TransactionList";
 import { NetWorthSummary } from "@/components/accounts/NetWorthSummary";
+import { AccountsOverviewCard } from "@/components/dashboard/AccountsOverviewCard";
 import { DashboardTrendsCard } from "@/components/dashboard/DashboardTrendsCard";
 import { useAccounts } from "@/hooks/use-accounts";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,7 @@ export default function DashboardPage() {
       <SummaryCards summary={summary} />
       <RecommendedDailyBudget summary={summary} />
       <NetWorthSummary accounts={accounts} />
+      <AccountsOverviewCard accounts={accounts} />
       <DashboardTrendsCard />
 
       <div className="flex flex-col gap-3">
