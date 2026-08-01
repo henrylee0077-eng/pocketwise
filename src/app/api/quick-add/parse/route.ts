@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createGoogleAIClient, QUICK_ADD_MODEL } from "@/lib/google-ai";
 import { createCategory, fetchCategories } from "@/lib/queries/categories";
 import { fetchAccountBalances } from "@/lib/queries/accounts";
-import { fetchPaymentMethods } from "@/lib/queries/payment-methods";
+import { createPaymentMethod, fetchPaymentMethods } from "@/lib/queries/payment-methods";
 import { quickAddExtractionSchema, quickAddRequestSchema } from "@/lib/validations";
 import { slugify, todayIso } from "@/lib/utils";
 
@@ -57,6 +57,11 @@ const responseSchema = {
       type: Type.STRING,
       description: "Exact id from the provided payment method list, or empty string.",
     },
+    newPaymentMethodName: {
+      type: Type.STRING,
+      description:
+        "Only when paymentMethodId is empty because the user named a specific payment method/app that isn't in the list (e.g. a newer e-wallet or bank app): a short, clean name for it (same language the user used), to be created automatically. Empty string otherwise.",
+    },
     merchant: { type: Type.STRING, description: "Merchant/payee name if mentioned, else empty string." },
     note: { type: Type.STRING, description: "Any extra detail worth keeping as a note, else empty string." },
     priority: { type: Type.STRING, description: "'high', 'medium', 'low', or empty string if not implied." },
@@ -72,6 +77,7 @@ const responseSchema = {
     "accountId",
     "toAccountId",
     "paymentMethodId",
+    "newPaymentMethodName",
     "merchant",
     "note",
     "priority",
@@ -135,6 +141,7 @@ Rules:
 - For expense/income, merchant and payment method must be explicit or clearly implied by the conversation — do NOT default or guess them silently. If either is missing, ask about it.
 - Category matching: do NOT settle for the generic "Others" (expense) or "Other Income" (income) catch-all just because nothing in the list is a perfect match. If the user's own words name or clearly imply a specific category that isn't in the list (e.g. "pet food", "gym membership", "宠物用品"), leave categoryId empty and instead put a short, clean category name for it (singular, same language the user used) in newCategoryName — treat this as resolved (do not ask a clarifying question just for this; the app will create the category automatically). Only actually use the "Others"/"Other Income" id (with newCategoryName left empty) when the user is genuinely vague about what it even is, or explicitly says something like "other"/"misc"/"其他".
 - Exception: if the resolved category ends up being the "Others"/"Other Income" catch-all itself, merchant is OPTIONAL — do not ask for it in that case, an empty merchant is fine.
+- Payment method matching: match common Malaysian payment rails and their nicknames/abbreviations to the closest listed payment method — e.g. "TNG", "Touch n Go", "touch and go ewallet" → Touch 'n Go eWallet; "grab pay", "grabpay" → GrabPay; "shopee pay", "spay" → ShopeePay; "duitnow qr", "duit now" → DuitNow; "cheque", "check" → Cheque. If the user names a specific payment method/app that genuinely isn't in the list (e.g. a bank's own app, a newer e-wallet), leave paymentMethodId empty and put a short, clean name for it in newPaymentMethodName instead of asking — the app will create it automatically, same as an unlisted category.
 - Never ask more than one question per turn. Priority and note are always optional — never ask about those.
 
 Respond only with JSON matching the schema.`;
@@ -236,6 +243,38 @@ Respond only with JSON matching the schema.`;
       } catch (error) {
         console.error("quick-add auto-create category failed", error);
         // Fall through — categoryId stays empty, the check below will ask.
+      }
+    }
+  }
+
+  // Same escape hatch for payment methods: if the user named a specific
+  // rail/app that isn't in the list (system defaults now cover the common
+  // Malaysian ones — cash, cards, bank transfer, cheque, Touch 'n Go
+  // eWallet, GrabPay, ShopeePay, Boost, DuitNow — plus generic E-Wallet),
+  // create a custom one instead of forcing a generic bucket or looping on
+  // a clarifying question.
+  const trimmedNewPaymentMethodName = extraction.newPaymentMethodName.trim();
+  if (draft.type !== "transfer" && !draft.paymentMethodId && trimmedNewPaymentMethodName) {
+    const candidateKey = slugify(trimmedNewPaymentMethodName);
+    const existingMatch = paymentMethods.find(
+      (p) =>
+        p.key === candidateKey ||
+        p.name_en.toLowerCase() === trimmedNewPaymentMethodName.toLowerCase() ||
+        p.name_zh === trimmedNewPaymentMethodName,
+    );
+    if (existingMatch) {
+      draft.paymentMethodId = existingMatch.id;
+    } else {
+      try {
+        const created = await createPaymentMethod(supabase, user.id, {
+          nameEn: trimmedNewPaymentMethodName,
+          nameZh: trimmedNewPaymentMethodName,
+          icon: "Smartphone",
+        });
+        draft.paymentMethodId = created.id;
+      } catch (error) {
+        console.error("quick-add auto-create payment method failed", error);
+        // Fall through — paymentMethodId stays empty, the check below will ask.
       }
     }
   }

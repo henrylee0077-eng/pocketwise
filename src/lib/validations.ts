@@ -210,6 +210,7 @@ export const quickAddExtractionSchema = z
     accountId: z.string(),
     toAccountId: z.string(),
     paymentMethodId: z.string(),
+    newPaymentMethodName: z.string(),
     merchant: z.string(),
     note: z.string(),
     priority: z.string(),

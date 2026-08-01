@@ -95,10 +95,11 @@ export function useQuickAddChat({ onSaved }: { onSaved?: () => void } = {}) {
       }
 
       const created = await createTransaction.mutateAsync(draftToValues(body.draft));
-      // Quick-add may have auto-created a brand new category server-side
-      // (when nothing existing matched) — refresh so pickers elsewhere
-      // pick it up without a manual reload.
+      // Quick-add may have auto-created a brand new category or payment
+      // method server-side (when nothing existing matched) — refresh so
+      // pickers elsewhere pick it up without a manual reload.
       queryClient.invalidateQueries({ queryKey: ["categories"] });
+      queryClient.invalidateQueries({ queryKey: ["payment-methods"] });
       toast.success(t("quickAdd.savedToast"), {
         action: {
           label: t("quickAdd.undo"),
