@@ -41,6 +41,11 @@ export const en = {
     accounts: "Accounts",
     noAccountsYet: "You haven't added any accounts yet.",
     addAccountCta: "Add an account",
+    upcomingPayments: "Upcoming payments",
+    dueToday: "Due today",
+    dueTomorrow: "Due tomorrow",
+    dueInDays: "Due in {days}d",
+    dueOn: "Due {date}",
   },
   budgetWarning: {
     title: "Heads up — you're close to your limit",
@@ -338,6 +343,11 @@ export const zh = {
     accounts: "账户",
     noAccountsYet: "你还没有添加任何账户。",
     addAccountCta: "添加账户",
+    upcomingPayments: "即将到期的还款",
+    dueToday: "今天到期",
+    dueTomorrow: "明天到期",
+    dueInDays: "{days} 天后到期",
+    dueOn: "到期日 {date}",
   },
   budgetWarning: {
     title: "提醒 — 预算即将用完",

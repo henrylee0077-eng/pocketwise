@@ -143,7 +143,8 @@ Rules:
 - Category matching: do NOT settle for the generic "Others" (expense) or "Other Income" (income) catch-all just because nothing in the list is a perfect match. If the user's own words name or clearly imply a specific category that isn't in the list (e.g. "pet food", "gym membership", "宠物用品"), leave categoryId empty and instead put a short, clean category name for it (singular, same language the user used) in newCategoryName — treat this as resolved (do not ask a clarifying question just for this; the app will create the category automatically). Only actually use the "Others"/"Other Income" id (with newCategoryName left empty) when the user is genuinely vague about what it even is, or explicitly says something like "other"/"misc"/"其他".
 - Exception: if the resolved category ends up being the "Others"/"Other Income" catch-all itself, merchant is OPTIONAL — do not ask for it in that case, an empty merchant is fine.
 - Payment method matching: match common Malaysian payment rails and their nicknames/abbreviations to the closest listed payment method — e.g. "TNG", "Touch n Go", "touch and go ewallet" → Touch 'n Go eWallet; "grab pay", "grabpay" → GrabPay; "shopee pay", "spay" → ShopeePay; "duitnow qr", "duit now" → DuitNow; "cheque", "check" → Cheque. If the user names a specific payment method/app that genuinely isn't in the list (e.g. a bank's own app, a newer e-wallet), leave paymentMethodId empty and put a short, clean name for it in newPaymentMethodName instead of asking — the app will create it automatically, same as an unlisted category.
-- Account matching (expense/income too, not just transfers): if the user names a wallet/bank/account — by its account name OR its institution (e.g. "Maybank", "into my HSBC account", "TNG wallet balance") — match it against the accounts list (name and institution are both shown) and set accountId, even though account isn't in the strict required-fields list below. This is what makes that specific account's balance actually reflect the transaction, so try hard to resolve it whenever one is mentioned. If the user clearly named an account/bank that doesn't match anything in the list, do NOT silently drop it and do NOT invent a new account (unlike categories/payment methods, an account can't be safely auto-created — it needs a type and starting balance only the user can set up in Settings). Instead ask a short clarifying question naming the closest existing accounts, e.g. "I don't have an account called X — did you mean one of: <list>, or should this not be tied to a specific account?" If the user says no specific account / just cash in hand / doesn't answer meaningfully, leave accountId empty and proceed — it's optional when genuinely not mentioned.
+- Account matching (expense/income too, not just transfers): if the user names a wallet/bank/account — by its account name OR its institution (e.g. "Maybank", "into my HSBC account", "TNG wallet balance") — match it against the accounts list (name and institution are both shown) and set accountId, even though account isn't in the strict required-fields list below. This is what makes that specific account's balance actually reflect the transaction, so try hard to resolve it whenever one is mentioned. If the user clearly named an account/bank that doesn't match anything in the list, do NOT silently drop it and do NOT invent a new account (unlike categories/payment methods, an account can't be safely auto-created — it needs a type and starting balance only the user can set up in Settings). Instead ask a short clarifying question naming the closest existing accounts, e.g. "I don't have an account called X — did you mean one of: <list>, or should this not be tied to a specific account?" If the user says no specific account / just cash in hand / doesn't answer meaningfully, leave accountId empty and proceed — it's optional when genuinely not mentioned. Note that accountId and paymentMethodId are independent fields, not either/or — a transaction can (and for cards/e-wallets with a matching account, should) have both set at once.
+- Credit card charges must be tied to a specific card account, not just the generic "Credit Card" payment method alone — a real charge always hits exactly one card's available limit, so a credit card expense with no linked account can't actually be tracked. If the user says "credit card" (or similar) without naming which one: when only one credit_card-type account exists in the accounts list, set accountId to it automatically; when more than one exists, ask which card by name (e.g. "Which card — Maybank Credit Card or HSBC Credit Card?") instead of marking status ready. If the user does name a specific card, resolve it via the normal account-matching rule above as usual.
 - Never ask more than one question per turn. Priority and note are always optional — never ask about those.
 
 Respond only with JSON matching the schema.`;
@@ -278,6 +279,27 @@ Respond only with JSON matching the schema.`;
         console.error("quick-add auto-create payment method failed", error);
         // Fall through — paymentMethodId stays empty, the check below will ask.
       }
+    }
+  }
+
+  // A credit card charge that isn't tied to a specific card account can't
+  // actually be tracked (nowhere to deduct the limit from) — so if payment
+  // resolved to the generic "Credit Card" method and no account is linked
+  // yet, resolve or ask deterministically, regardless of what the model did.
+  if (draft.type !== "transfer" && !draft.accountId) {
+    const resolvedPaymentMethod = paymentMethods.find((p) => p.id === draft.paymentMethodId);
+    if (resolvedPaymentMethod?.key === "credit_card") {
+      const creditCardAccounts = accounts.filter((a) => a.type === "credit_card" && !a.is_archived);
+      const [onlyCreditCardAccount] = creditCardAccounts;
+      if (creditCardAccounts.length === 1 && onlyCreditCardAccount) {
+        draft.accountId = onlyCreditCardAccount.id;
+      } else if (creditCardAccounts.length > 1) {
+        return NextResponse.json({
+          status: "needs_clarification",
+          question: `Which credit card — ${creditCardAccounts.map((a) => a.name).join(", ")}?`,
+        });
+      }
+      // Zero credit card accounts set up: nothing to link to, proceed without one.
     }
   }
 

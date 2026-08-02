@@ -1,10 +1,15 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import {
+  addMonths,
   differenceInCalendarDays,
   endOfMonth,
   format,
   formatISO,
+  getDate,
+  lastDayOfMonth,
+  setDate,
+  startOfDay,
   startOfMonth,
 } from "date-fns";
 
@@ -66,6 +71,26 @@ export function formatMonthLabel(date: Date = new Date(), locale: "en" | "zh" = 
 
 export function formatInputDate(date: Date): string {
   return format(date, "yyyy-MM-dd");
+}
+
+/**
+ * Given a billing day-of-month (1-31, e.g. a credit card's `payment_due_day`),
+ * returns the next occurrence on or after `from`. Clamps to the last day of
+ * shorter months (e.g. day 31 in February becomes the 28th/29th) rather than
+ * rolling into the next month, matching how banks bill short months.
+ */
+export function nextDueDateFromDay(dayOfMonth: number, from: Date = new Date()): Date {
+  const today = startOfDay(from);
+  const clampToMonth = (base: Date) => setDate(base, Math.min(dayOfMonth, getDate(lastDayOfMonth(base))));
+
+  const thisMonth = clampToMonth(today);
+  if (thisMonth >= today) return thisMonth;
+  return clampToMonth(addMonths(today, 1));
+}
+
+/** Whole days between now and `date` (0 = due today). Always >= 0 when `date` came from {@link nextDueDateFromDay}. */
+export function daysUntil(date: Date, from: Date = new Date()): number {
+  return differenceInCalendarDays(startOfDay(date), startOfDay(from));
 }
 
 /** Turns a display name into a URL/DB-safe key, with a short unique suffix. */
