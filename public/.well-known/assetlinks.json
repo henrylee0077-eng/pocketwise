@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.henrylee.pocketwise",
+      "sha256_cert_fingerprints": [
+        "E6:CC:DA:5C:0E:1D:8D:9B:6B:8A:34:E9:A3:4A:86:D6:EA:95:87:EB:82:53:2E:FF:94:1D:A1:E6:05:FD:CF:3E"
+      ]
+    }
+  }
+]
