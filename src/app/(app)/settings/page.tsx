@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, ChevronRight, LogOut, Repeat, Tag, Tags, Wallet } from "lucide-react";
+import { BarChart3, ChevronRight, LogOut, Repeat, Tag, Tags, Target, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
@@ -30,6 +30,14 @@ export default function SettingsPage() {
           <CardTitle>{t("settings.manage")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-1 p-0">
+          <Link
+            href="/projects"
+            className="flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary"
+          >
+            <Target className="size-4 text-muted-foreground" />
+            <span className="flex-1">{t("nav.projects")}</span>
+            <ChevronRight className="size-4 text-muted-foreground" />
+          </Link>
           <Link
             href="/reports"
             className="flex items-center gap-3 px-5 py-3 text-sm font-medium transition-colors hover:bg-secondary"
