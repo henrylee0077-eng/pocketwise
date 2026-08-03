@@ -18,8 +18,11 @@ import { Label } from "@/components/ui/label";
 import { CategoryColorPicker } from "@/components/settings/CategoryColorPicker";
 import { AccountIconPicker } from "@/components/accounts/AccountIconPicker";
 import { AccountTypePicker } from "@/components/accounts/AccountTypePicker";
+import { DayOfMonthPicker } from "@/components/accounts/DayOfMonthPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useCreateAccount, useUpdateAccount } from "@/hooks/use-accounts";
+import { usePreferredCurrency } from "@/hooks/use-currency";
+import { getCurrency } from "@/lib/currencies";
 import { accountFormSchema, type AccountFormInput, type AccountFormValues } from "@/lib/validations";
 import { LIABILITY_ACCOUNT_TYPES, type Account, type AccountType } from "@/types";
 
@@ -67,6 +70,7 @@ export function AccountFormDialog({
   const { t } = useLanguage();
   const createAccount = useCreateAccount();
   const updateAccount = useUpdateAccount();
+  const currencySymbol = getCurrency(usePreferredCurrency()).symbol;
 
   const {
     register,
@@ -137,7 +141,7 @@ export function AccountFormDialog({
             </Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-                RM
+                {currencySymbol}
               </span>
               <Input
                 id="openingBalance"
@@ -174,11 +178,19 @@ export function AccountFormDialog({
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="statementDay">{t("accounts.statementDay")}</Label>
-                <Input id="statementDay" inputMode="numeric" {...register("statementDay")} />
+                <DayOfMonthPicker
+                  id="statementDay"
+                  value={watch("statementDay") as number | undefined}
+                  onChange={(day) => setValue("statementDay", day, { shouldValidate: true })}
+                />
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="paymentDueDay">{t("accounts.paymentDueDay")}</Label>
-                <Input id="paymentDueDay" inputMode="numeric" {...register("paymentDueDay")} />
+                <DayOfMonthPicker
+                  id="paymentDueDay"
+                  value={watch("paymentDueDay") as number | undefined}
+                  onChange={(day) => setValue("paymentDueDay", day, { shouldValidate: true })}
+                />
               </div>
             </div>
           )}
@@ -191,7 +203,11 @@ export function AccountFormDialog({
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="paymentDueDay">{t("accounts.paymentDueDay")}</Label>
-                <Input id="paymentDueDay" inputMode="numeric" {...register("paymentDueDay")} />
+                <DayOfMonthPicker
+                  id="paymentDueDay"
+                  value={watch("paymentDueDay") as number | undefined}
+                  onChange={(day) => setValue("paymentDueDay", day, { shouldValidate: true })}
+                />
               </div>
             </div>
           )}
@@ -199,7 +215,13 @@ export function AccountFormDialog({
           {type === "installment" && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="paymentDueDay">{t("accounts.paymentDueDay")}</Label>
-              <Input id="paymentDueDay" inputMode="numeric" className="max-w-[140px]" {...register("paymentDueDay")} />
+              <div className="max-w-[200px]">
+                <DayOfMonthPicker
+                  id="paymentDueDay"
+                  value={watch("paymentDueDay") as number | undefined}
+                  onChange={(day) => setValue("paymentDueDay", day, { shouldValidate: true })}
+                />
+              </div>
             </div>
           )}
 

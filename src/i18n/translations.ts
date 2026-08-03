@@ -128,6 +128,8 @@ export const en = {
     statementDay: "Statement day",
     paymentDueDay: "Payment due day",
     minPaymentPercent: "Min payment (%)",
+    selectDay: "Select day",
+    dayOfMonth: "Day {day}",
     empty: "No accounts yet. Add a wallet, bank account, or card to start tracking balances.",
     archived: "Archived",
     archive: "Archive",
@@ -304,6 +306,7 @@ export const en = {
     retry: "Try again",
     close: "Close",
     today: "Today",
+    clear: "Clear",
   },
 };
 
@@ -437,6 +440,8 @@ export const zh = {
     statementDay: "结账日",
     paymentDueDay: "还款日",
     minPaymentPercent: "最低还款比例 (%)",
+    selectDay: "选择日期",
+    dayOfMonth: "第 {day} 日",
     empty: "还没有账户。添加钱包、银行户口或信用卡以开始追踪余额。",
     archived: "已归档",
     archive: "归档",
@@ -613,6 +618,7 @@ export const zh = {
     retry: "重试",
     close: "关闭",
     today: "今天",
+    clear: "清除",
   },
 } satisfies typeof en;
 
