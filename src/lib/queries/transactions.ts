@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import type { TransactionFilters, TransactionWithTags } from "@/types";
+import type { Transaction, TransactionFilters, TransactionWithTags } from "@/types";
 import type { TransactionFormValues } from "@/lib/validations";
 
 export interface DateRange {
@@ -8,6 +8,33 @@ export interface DateRange {
   start: string;
   /** Inclusive, ISO yyyy-MM-dd */
   end: string;
+}
+
+/** Fetches and merges tag ids for a batch of transactions in one extra query. */
+async function attachTags(
+  supabase: SupabaseClient<Database>,
+  transactions: Transaction[],
+): Promise<TransactionWithTags[]> {
+  if (transactions.length === 0) return [];
+
+  const ids = transactions.map((t) => t.id);
+  const { data: tagLinks, error: tagError } = await supabase
+    .from("transaction_tags")
+    .select("transaction_id, tag_id")
+    .in("transaction_id", ids);
+  if (tagError) throw tagError;
+
+  const tagsByTransaction = new Map<string, string[]>();
+  for (const link of tagLinks ?? []) {
+    const existing = tagsByTransaction.get(link.transaction_id) ?? [];
+    existing.push(link.tag_id);
+    tagsByTransaction.set(link.transaction_id, existing);
+  }
+
+  return transactions.map((t) => ({
+    ...t,
+    tagIds: tagsByTransaction.get(t.id) ?? [],
+  }));
 }
 
 /**
@@ -45,26 +72,8 @@ export async function fetchTransactionsForRange(
 
   const { data: transactions, error } = await query;
   if (error) throw error;
-  if (!transactions || transactions.length === 0) return [];
 
-  const ids = transactions.map((t) => t.id);
-  const { data: tagLinks, error: tagError } = await supabase
-    .from("transaction_tags")
-    .select("transaction_id, tag_id")
-    .in("transaction_id", ids);
-  if (tagError) throw tagError;
-
-  const tagsByTransaction = new Map<string, string[]>();
-  for (const link of tagLinks ?? []) {
-    const existing = tagsByTransaction.get(link.transaction_id) ?? [];
-    existing.push(link.tag_id);
-    tagsByTransaction.set(link.transaction_id, existing);
-  }
-
-  let result = transactions.map((t) => ({
-    ...t,
-    tagIds: tagsByTransaction.get(t.id) ?? [],
-  }));
+  let result = await attachTags(supabase, transactions ?? []);
 
   if (filters.tagIds && filters.tagIds.length > 0) {
     const wanted = new Set(filters.tagIds);
@@ -72,6 +81,29 @@ export async function fetchTransactionsForRange(
   }
 
   return result;
+}
+
+/**
+ * Every transaction that touches a specific account — as its own account_id
+ * (expense/income/transfer-out) OR as a transfer's to_account_id
+ * (transfer-in). Matches exactly what `account_balances.current_balance`
+ * sums, so this is the "statement" view for that account. Unlike
+ * `fetchTransactionsForRange`, this isn't date-bounded — an account detail
+ * page shows its full history.
+ */
+export async function fetchAccountTransactions(
+  supabase: SupabaseClient<Database>,
+  accountId: string,
+): Promise<TransactionWithTags[]> {
+  const { data: transactions, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .or(`account_id.eq.${accountId},to_account_id.eq.${accountId}`)
+    .order("expense_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return attachTags(supabase, transactions ?? []);
 }
 
 async function setTransactionTags(

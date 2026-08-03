@@ -149,6 +149,10 @@ export const en = {
     typeCreditCard: "Credit Card",
     typeLoan: "Loan",
     typeInstallment: "Installment",
+    notFound: "Couldn't find that account.",
+    currentBalance: "Current balance",
+    availableCredit: "Available",
+    transactionHistory: "Transaction history",
   },
   recurring: {
     title: "Recurring transactions",
@@ -454,6 +458,10 @@ export const zh = {
     typeCreditCard: "信用卡",
     typeLoan: "贷款",
     typeInstallment: "分期付款",
+    notFound: "找不到这个账户。",
+    currentBalance: "当前余额",
+    availableCredit: "可用额度",
+    transactionHistory: "交易记录",
   },
   recurring: {
     title: "定期交易",

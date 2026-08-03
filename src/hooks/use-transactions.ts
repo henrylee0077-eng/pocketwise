@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   createTransaction,
   deleteTransaction,
+  fetchAccountTransactions,
   fetchTransactionsForRange,
   updateTransaction,
 } from "@/lib/queries/transactions";
@@ -37,6 +38,17 @@ export function useTransactionsForRange(startIso: string, endIso: string) {
     queryKey: ["transactions", user?.id, "range", startIso, endIso],
     queryFn: () => fetchTransactionsForRange(createClient(), { start: startIso, end: endIso }),
     enabled: !!user,
+  });
+}
+
+/** Full transaction history for one account (both as source and transfer destination) — used by the account detail page. */
+export function useAccountTransactions(accountId: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["transactions", user?.id, "account", accountId],
+    queryFn: () => fetchAccountTransactions(createClient(), accountId),
+    enabled: !!user && !!accountId,
   });
 }
 

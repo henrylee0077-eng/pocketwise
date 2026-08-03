@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -18,6 +19,7 @@ import { AccountIcon } from "@/components/accounts/AccountIconPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDeleteAccount, useSetAccountArchived } from "@/hooks/use-accounts";
 import { useFormatCurrency } from "@/hooks/use-currency";
+import { toAccountTypeKey } from "@/lib/utils";
 import { LIABILITY_ACCOUNT_TYPES, type AccountBalance } from "@/types";
 
 export function AccountListItem({
@@ -64,12 +66,12 @@ export function AccountListItem({
         <AccountIcon name={account.icon} className="size-5" />
       </span>
 
-      <button type="button" onClick={onEdit} className="min-w-0 flex-1 text-left">
+      <Link href={`/settings/accounts/${account.id}`} className="min-w-0 flex-1 text-left">
         <p className="truncate text-sm font-medium text-foreground">{account.name}</p>
         <p className="truncate text-xs text-muted-foreground">
-          {account.institution ?? t(`accounts.type${capitalize(account.type)}`)}
+          {account.institution ?? t(`accounts.type${toAccountTypeKey(account.type)}`)}
         </p>
-      </button>
+      </Link>
 
       <span
         className={`shrink-0 text-sm font-semibold ${
@@ -124,11 +126,4 @@ export function AccountListItem({
       </AlertDialog>
     </div>
   );
-}
-
-function capitalize(type: string): string {
-  return type
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
 }

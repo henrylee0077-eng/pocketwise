@@ -6,18 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AccountIcon } from "@/components/accounts/AccountIconPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { cn } from "@/lib/utils";
+import { cn, toAccountTypeKey } from "@/lib/utils";
 import { useFormatCurrency } from "@/hooks/use-currency";
 import { LIABILITY_ACCOUNT_TYPES, type AccountBalance } from "@/types";
 
 const VISIBLE_COUNT = 4;
-
-function capitalize(type: string): string {
-  return type
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
-}
 
 export function AccountsOverviewCard({ accounts }: { accounts: AccountBalance[] }) {
   const { t } = useLanguage();
@@ -58,7 +51,7 @@ export function AccountsOverviewCard({ accounts }: { accounts: AccountBalance[] 
           return (
             <Link
               key={account.id}
-              href="/settings/accounts"
+              href={`/settings/accounts/${account.id}`}
               className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-secondary"
             >
               <span
@@ -70,7 +63,7 @@ export function AccountsOverviewCard({ accounts }: { accounts: AccountBalance[] 
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-foreground">{account.name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {account.institution ?? t(`accounts.type${capitalize(account.type)}`)}
+                  {account.institution ?? t(`accounts.type${toAccountTypeKey(account.type)}`)}
                 </span>
               </span>
               <span

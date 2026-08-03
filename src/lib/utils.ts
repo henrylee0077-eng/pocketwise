@@ -100,6 +100,18 @@ export function daysUntil(date: Date, from: Date = new Date()): number {
   return differenceInCalendarDays(startOfDay(date), startOfDay(from));
 }
 
+/**
+ * Turns an account `type` value (e.g. "credit_card") into the matching
+ * translation key suffix (e.g. "CreditCard", used as `accounts.type${...}`).
+ * Not a general-purpose display formatter — only ever used to build that key.
+ */
+export function toAccountTypeKey(type: string): string {
+  return type
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join("");
+}
+
 /** Turns a display name into a URL/DB-safe key, with a short unique suffix. */
 export function slugify(input: string): string {
   const base = input
