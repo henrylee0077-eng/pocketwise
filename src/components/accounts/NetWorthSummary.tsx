@@ -1,7 +1,7 @@
 "use client";
 
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import { ASSET_ACCOUNT_TYPES, type AccountBalance } from "@/types";
 
 export function computeNetWorth(accounts: AccountBalance[]) {
@@ -17,6 +17,7 @@ export function computeNetWorth(accounts: AccountBalance[]) {
 
 export function NetWorthSummary({ accounts }: { accounts: AccountBalance[] }) {
   const { t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const { totalAssets, totalLiabilities, netWorth } = computeNetWorth(accounts);
 
   if (accounts.length === 0) return null;

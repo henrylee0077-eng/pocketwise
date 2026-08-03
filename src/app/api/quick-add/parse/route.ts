@@ -7,6 +7,7 @@ import { fetchAccountBalances } from "@/lib/queries/accounts";
 import { createPaymentMethod, fetchPaymentMethods } from "@/lib/queries/payment-methods";
 import { quickAddExtractionSchema, quickAddRequestSchema } from "@/lib/validations";
 import { slugify, todayIso } from "@/lib/utils";
+import { getCurrency } from "@/lib/currencies";
 
 const OTHER_CATEGORY_KEYS = new Set(["others", "other_income"]);
 
@@ -27,7 +28,7 @@ const responseSchema = {
       type: Type.STRING,
       enum: ["expense", "income", "transfer"],
       description:
-        "expense = money spent (including credit card purchases charged to a card account); income = money received; transfer = explicitly moving money between two of the user's own named accounts (e.g. 'transfer RM500 from Maybank to HSBC').",
+        "expense = money spent (including credit card purchases charged to a card account); income = money received; transfer = explicitly moving money between two of the user's own named accounts (e.g. 'transfer 500 from Maybank to HSBC').",
     },
     amount: { type: Type.NUMBER, description: "Positive number, currency symbols/codes stripped. 0 if not yet known." },
     date: {
@@ -98,11 +99,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: body.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
   }
 
-  const [categories, accounts, paymentMethods] = await Promise.all([
+  const [categories, accounts, paymentMethods, profileRes] = await Promise.all([
     fetchCategories(supabase),
     fetchAccountBalances(supabase),
     fetchPaymentMethods(supabase),
+    supabase.from("profiles").select("preferred_currency").eq("id", user.id).single(),
   ]);
+  const currency = getCurrency(profileRes.data?.preferred_currency ?? "MYR");
 
   const categoryList = categories
     .map((c) => `${c.id} :: ${c.name_en} / ${c.name_zh} (${c.type})`)
@@ -115,7 +118,7 @@ export async function POST(request: Request) {
 
   const today = todayIso();
 
-  const systemInstruction = `You extract structured personal expense-tracker transactions from a short conversation, in English or Chinese. The app's currency is Malaysian Ringgit (RM/MYR). Today's reference date is ${today}.
+  const systemInstruction = `You extract structured personal expense-tracker transactions from a short conversation, in English or Chinese. The app's currency is ${currency.nameEn} (${currency.symbol}/${currency.code}) — strip any currency symbols/codes the user types, whether or not they match this currency. Today's reference date is ${today}.
 
 Available categories (id :: name):
 ${categoryList || "(none)"}
@@ -126,7 +129,7 @@ ${accountList || "(none)"}
 Available payment methods (id :: name):
 ${paymentMethodList || "(none)"}
 
-This is a multi-turn conversation. The user's first message is a command like "today lunch RM20" or "pay HSBC credit card RM200.40 for a bag". Once every required field below is confidently known, set status to "ready" — the app will save it immediately with no further confirmation, so only mark "ready" when every required field is actually filled in. Otherwise set status to "needs_clarification" and ask exactly ONE short, specific, friendly question about the single most important missing field. The user's next message will answer that question — use the whole conversation so far to fill in the final transaction.
+This is a multi-turn conversation. The user's first message is a command like "today lunch 20" or "pay HSBC credit card 200.40 for a bag". Once every required field below is confidently known, set status to "ready" — the app will save it immediately with no further confirmation, so only mark "ready" when every required field is actually filled in. Otherwise set status to "needs_clarification" and ask exactly ONE short, specific, friendly question about the single most important missing field. The user's next message will answer that question — use the whole conversation so far to fill in the final transaction.
 
 Required fields before status can be "ready":
 - expense: amount, category, merchant, payment method, AND date — all five.
@@ -135,7 +138,7 @@ Required fields before status can be "ready":
 - account is NOT in this required list — it's optional — EXCEPT when the user actually named one, in which case see the account-matching rule below (resolve it or ask, don't just skip it).
 
 Rules:
-- "pay credit card X for <purchase>" or "spent RM.. on credit card X" is an EXPENSE charged to account X, NOT a transfer — it increases what the user owes on that card.
+- "pay credit card X for <purchase>" or "spent .. on credit card X" is an EXPENSE charged to account X, NOT a transfer — it increases what the user owes on that card.
 - Only use type "transfer" when the user is explicitly moving money between two of their own listed accounts.
 - Always pick the single best-matching id from the lists above, or an empty string if nothing fits well. Never invent an id that isn't listed.
 - Resolve relative dates (today, yesterday, last Monday, etc.) against the reference date; default to the reference date if no date is mentioned — date is the one required field that's satisfied by this default, so only ask about it if the user's phrasing is genuinely ambiguous (e.g. "the 30th" with no clear month).

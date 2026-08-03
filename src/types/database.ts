@@ -554,6 +554,10 @@ export interface Database {
         Args: Record<string, never>;
         Returns: void;
       };
+      set_preferred_currency: {
+        Args: { new_currency: string };
+        Returns: void;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

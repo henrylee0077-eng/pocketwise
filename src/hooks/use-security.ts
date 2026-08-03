@@ -9,6 +9,7 @@ import {
   fetchProfile,
   resetAccount,
   setPin,
+  setPreferredCurrency,
   verifyPin,
   type VerifyPinResult,
 } from "@/lib/queries/security";
@@ -63,6 +64,25 @@ export function useClearPin() {
 export function useResetAccount() {
   return useMutation({
     mutationFn: () => resetAccount(createClient()),
+  });
+}
+
+/**
+ * Changing currency re-labels every existing account server-side (see the
+ * set_preferred_currency RPC), so both the profile and accounts caches need
+ * to be refreshed together or the dashboard/account list would keep
+ * showing stale symbols until a manual reload.
+ */
+export function useSetPreferredCurrency() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (currencyCode: string) => setPreferredCurrency(createClient(), currencyCode),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+    },
   });
 }
 

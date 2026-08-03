@@ -7,10 +7,12 @@ import { CategoryBudgetSection } from "@/components/budget/CategoryBudgetSection
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useBudgetHistory } from "@/hooks/use-budget";
-import { formatCurrency, formatMonthLabel, monthKey } from "@/lib/utils";
+import { formatMonthLabel, monthKey } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 
 export default function BudgetPage() {
   const { t, locale } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const { summary, isLoading } = useDashboard();
   const { data: history = [] } = useBudgetHistory();
   const currentMonthIso = monthKey();

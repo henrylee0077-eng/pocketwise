@@ -17,7 +17,7 @@ import {
 import { AccountIcon } from "@/components/accounts/AccountIconPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDeleteAccount, useSetAccountArchived } from "@/hooks/use-accounts";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import { LIABILITY_ACCOUNT_TYPES, type AccountBalance } from "@/types";
 
 export function AccountListItem({
@@ -28,6 +28,7 @@ export function AccountListItem({
   onEdit: () => void;
 }) {
   const { t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const deleteAccount = useDeleteAccount();
   const setArchived = useSetAccountArchived();
   const [open, setOpen] = useState(false);

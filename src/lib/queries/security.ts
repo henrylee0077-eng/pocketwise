@@ -53,3 +53,11 @@ export async function resetAccount(supabase: SupabaseClient<Database>): Promise<
   const { error } = await supabase.rpc("reset_my_account");
   if (error) throw error;
 }
+
+export async function setPreferredCurrency(
+  supabase: SupabaseClient<Database>,
+  currencyCode: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("set_preferred_currency", { new_currency: currencyCode });
+  if (error) throw error;
+}

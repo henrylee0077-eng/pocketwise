@@ -4,11 +4,12 @@ import { AlertTriangle } from "lucide-react";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useCategories } from "@/hooks/use-categories";
 import { categoryName } from "@/components/transactions/CategoryPicker";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { DashboardSummary } from "@/types";
 
 export function CategoryBudgetAlerts({ summary }: { summary: DashboardSummary }) {
   const { locale, t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const { data: categories = [] } = useCategories();
 
   const flagged = summary.categoryBudgets.filter((cb) => cb.warningTriggered || cb.exceeded);

@@ -2,11 +2,12 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { DashboardSummary } from "@/types";
 
 export function SummaryCards({ summary }: { summary: DashboardSummary }) {
   const { t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const remainingIsNegative = (summary.remainingBudget ?? 0) < 0;
 
   return (

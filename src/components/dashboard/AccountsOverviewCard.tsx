@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AccountIcon } from "@/components/accounts/AccountIconPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { formatCurrency, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import { LIABILITY_ACCOUNT_TYPES, type AccountBalance } from "@/types";
 
 const VISIBLE_COUNT = 4;
@@ -20,6 +21,7 @@ function capitalize(type: string): string {
 
 export function AccountsOverviewCard({ accounts }: { accounts: AccountBalance[] }) {
   const { t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const active = accounts.filter((a) => !a.is_archived);
 
   if (active.length === 0) {

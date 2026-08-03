@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { AppLockSection } from "@/components/settings/AppLockSection";
+import { CurrencySection } from "@/components/settings/CurrencySection";
 import { ResetAccountSection } from "@/components/settings/ResetAccountSection";
 import { useAuth } from "@/components/providers/AuthProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
@@ -89,6 +90,8 @@ export default function SettingsPage() {
           <ThemeToggle />
         </CardContent>
       </Card>
+
+      <CurrencySection />
 
       <Card>
         <CardHeader>

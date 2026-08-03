@@ -24,7 +24,8 @@ import {
   useDeleteRecurringTransaction,
   useSetRecurringTransactionActive,
 } from "@/hooks/use-recurring-transactions";
-import { formatCurrency, formatDisplayDate } from "@/lib/utils";
+import { formatDisplayDate } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { RecurringTransaction } from "@/types";
 
 export function RecurringListItem({
@@ -35,6 +36,7 @@ export function RecurringListItem({
   onEdit: () => void;
 }) {
   const { locale, t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const { data: categories = [] } = useCategories();
   const { data: accounts = [] } = useAccounts();
   const deleteRule = useDeleteRecurringTransaction();

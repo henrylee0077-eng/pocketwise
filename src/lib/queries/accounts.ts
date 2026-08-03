@@ -35,10 +35,11 @@ export async function createAccount(
   supabase: SupabaseClient<Database>,
   userId: string,
   values: AccountFormValues,
+  currency: string,
 ): Promise<Account> {
   const { data, error } = await supabase
     .from("accounts")
-    .insert({ user_id: userId, ...toRow(values) })
+    .insert({ user_id: userId, currency, ...toRow(values) })
     .select("*")
     .single();
 

@@ -19,7 +19,8 @@ import { CategoryIcon, categoryName } from "@/components/transactions/CategoryPi
 import { AccountIcon } from "@/components/accounts/AccountIconPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDeleteTransaction } from "@/hooks/use-transactions";
-import { cn, formatCurrency, formatDisplayDate } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
+import { cn, formatDisplayDate } from "@/lib/utils";
 import type { Account, Category, TransactionWithTags } from "@/types";
 
 const PRIORITY_DOT: Record<string, string> = {
@@ -40,6 +41,7 @@ export function TransactionListItem({
   toAccount?: Account;
 }) {
   const { locale, t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const deleteTransaction = useDeleteTransaction();
   const [open, setOpen] = useState(false);
 

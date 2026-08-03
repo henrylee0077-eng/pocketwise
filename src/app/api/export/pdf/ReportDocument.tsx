@@ -1,4 +1,5 @@
 import { Document, Page, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { formatCurrency } from "@/lib/utils";
 import type { CategoryBreakdownEntry, ReportSummary } from "@/lib/reports";
 import type { TransactionWithTags } from "@/types";
 
@@ -22,10 +23,6 @@ const styles = StyleSheet.create({
   breakdownRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
 });
 
-function formatRM(n: number) {
-  return `RM ${Math.abs(n).toLocaleString("en-MY", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
 export function ReportDocument({
   start,
   end,
@@ -33,6 +30,7 @@ export function ReportDocument({
   expenseBreakdown,
   categoryNames,
   transactions,
+  currency,
 }: {
   start: string;
   end: string;
@@ -40,7 +38,10 @@ export function ReportDocument({
   expenseBreakdown: CategoryBreakdownEntry[];
   categoryNames: Map<string, string>;
   transactions: TransactionWithTags[];
+  currency: string;
 }) {
+  const formatRM = (n: number) => formatCurrency(Math.abs(n), currency);
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>

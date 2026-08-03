@@ -12,18 +12,25 @@ import {
   startOfDay,
   startOfMonth,
 } from "date-fns";
+import { getCurrency } from "@/lib/currencies";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/** Formats a number as Malaysian Ringgit, e.g. "RM 1,280.00". */
-export function formatCurrency(amount: number): string {
-  const formatted = new Intl.NumberFormat("en-MY", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+/**
+ * Formats a number in the given currency, e.g. formatCurrency(1280, "MYR")
+ * -> "RM 1,280.00". Defaults to MYR for any existing call site that hasn't
+ * been updated to pass a currency yet. Prefer the `useFormatCurrency` hook
+ * in components so the user's `preferred_currency` is applied automatically.
+ */
+export function formatCurrency(amount: number, currencyCode: string = "MYR"): string {
+  const currency = getCurrency(currencyCode);
+  const formatted = new Intl.NumberFormat(currency.locale, {
+    minimumFractionDigits: currency.decimals,
+    maximumFractionDigits: currency.decimals,
   }).format(Math.abs(amount));
-  return `${amount < 0 ? "-" : ""}RM ${formatted}`;
+  return `${amount < 0 ? "-" : ""}${currency.symbol} ${formatted}`;
 }
 
 /** Formats an ISO date string (yyyy-MM-dd) for display, locale-aware. */

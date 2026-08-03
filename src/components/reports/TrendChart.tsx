@@ -2,7 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { ReportPeriodType, TrendBucket } from "@/lib/reports";
 
 function labelFormatter(periodType: ReportPeriodType, locale: "en" | "zh") {
@@ -21,6 +21,7 @@ function labelFormatter(periodType: ReportPeriodType, locale: "en" | "zh") {
 
 export function TrendChart({ buckets, periodType }: { buckets: TrendBucket[]; periodType: ReportPeriodType }) {
   const { locale, t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const format = labelFormatter(periodType, locale);
 
   const data = buckets.map((b) => ({

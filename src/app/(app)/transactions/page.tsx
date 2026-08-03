@@ -7,12 +7,14 @@ import { TransactionList } from "@/components/transactions/TransactionList";
 import { TransactionFilterBar } from "@/components/transactions/TransactionFilterBar";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useMonthTransactions } from "@/hooks/use-transactions";
-import { formatCurrency, formatMonthLabel, monthKey } from "@/lib/utils";
+import { formatMonthLabel, monthKey } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import { useState } from "react";
 import type { TransactionFilters } from "@/types";
 
 export default function TransactionsPage() {
   const { t, locale } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const [filters, setFilters] = useState<TransactionFilters>({});
   const currentMonthIso = monthKey();
   const { data: transactions, isLoading } = useMonthTransactions(currentMonthIso, filters);

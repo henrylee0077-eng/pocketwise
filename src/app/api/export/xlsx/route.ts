@@ -26,16 +26,18 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [transactions, categoriesRes, accountsRes, paymentMethodsRes] = await Promise.all([
+  const [transactions, categoriesRes, accountsRes, paymentMethodsRes, profileRes] = await Promise.all([
     fetchTransactionsForRange(supabase, { start, end }),
     supabase.from("categories").select("id, name_en, color"),
     supabase.from("accounts").select("id, name"),
     supabase.from("payment_methods").select("id, name_en"),
+    supabase.from("profiles").select("preferred_currency").eq("id", user.id).single(),
   ]);
 
   const categoryMap = new Map((categoriesRes.data ?? []).map((c) => [c.id, c.name_en]));
   const accountMap = new Map((accountsRes.data ?? []).map((a) => [a.id, a.name]));
   const paymentMethodMap = new Map((paymentMethodsRes.data ?? []).map((p) => [p.id, p.name_en]));
+  const currency = profileRes.data?.preferred_currency ?? "MYR";
 
   const range = { start: new Date(`${start}T00:00:00`), end: new Date(`${end}T00:00:00`), startIso: start, endIso: end };
   const summary = computeReportSummary(transactions, range);
@@ -65,7 +67,7 @@ export async function GET(request: Request) {
     { header: "Date", key: "date", width: 12 },
     { header: "Type", key: "type", width: 10 },
     { header: "Category", key: "category", width: 20 },
-    { header: "Amount (RM)", key: "amount", width: 14 },
+    { header: `Amount (${currency})`, key: "amount", width: 14 },
     { header: "Account", key: "account", width: 18 },
     { header: "To Account", key: "toAccount", width: 18 },
     { header: "Payment Method", key: "paymentMethod", width: 16 },

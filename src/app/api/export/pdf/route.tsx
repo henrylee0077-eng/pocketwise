@@ -23,12 +23,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [transactions, categoriesRes] = await Promise.all([
+  const [transactions, categoriesRes, profileRes] = await Promise.all([
     fetchTransactionsForRange(supabase, { start, end }),
     supabase.from("categories").select("id, name_en"),
+    supabase.from("profiles").select("preferred_currency").eq("id", user.id).single(),
   ]);
 
   const categoryNames = new Map((categoriesRes.data ?? []).map((c) => [c.id, c.name_en]));
+  const currency = profileRes.data?.preferred_currency ?? "MYR";
   const range = { start: new Date(`${start}T00:00:00`), end: new Date(`${end}T00:00:00`), startIso: start, endIso: end };
   const summary = computeReportSummary(transactions, range);
   const expenseBreakdown = computeCategoryBreakdown(transactions, "expense");
@@ -41,6 +43,7 @@ export async function GET(request: Request) {
       expenseBreakdown={expenseBreakdown}
       categoryNames={categoryNames}
       transactions={transactions}
+      currency={currency}
     />,
   );
 

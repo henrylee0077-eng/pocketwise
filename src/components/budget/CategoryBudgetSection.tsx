@@ -21,7 +21,7 @@ import { CategoryBudgetFormDialog } from "@/components/budget/CategoryBudgetForm
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useCategories } from "@/hooks/use-categories";
 import { useDeleteCategoryBudget } from "@/hooks/use-category-budgets";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { CategoryBudgetStatus } from "@/types";
 
 export function CategoryBudgetSection({
@@ -32,6 +32,7 @@ export function CategoryBudgetSection({
   statuses: CategoryBudgetStatus[];
 }) {
   const { locale, t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const { data: categories = [] } = useCategories();
   const deleteCategoryBudget = useDeleteCategoryBudget(monthIso);
   const [dialogOpen, setDialogOpen] = useState(false);

@@ -2,11 +2,12 @@
 
 import { Card } from "@/components/ui/card";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { ReportSummary } from "@/lib/reports";
 
 export function ReportSummaryCards({ summary }: { summary: ReportSummary }) {
   const { t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
 
   const items = [
     { label: t("dashboard.monthSpending"), value: summary.totalExpense, tone: "text-foreground" },

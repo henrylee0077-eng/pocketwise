@@ -11,6 +11,7 @@ import {
 } from "@/lib/queries/accounts";
 import type { AccountFormValues } from "@/lib/validations";
 import { useAuth } from "@/components/providers/AuthProvider";
+import { usePreferredCurrency } from "@/hooks/use-currency";
 
 export function useAccounts() {
   return useQuery({
@@ -23,11 +24,15 @@ export function useAccounts() {
 export function useCreateAccount() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  // PocketWise is single-currency-per-user (see set_preferred_currency RPC),
+  // so every new account is denominated in whatever the user has chosen —
+  // never a hardcoded default.
+  const currency = usePreferredCurrency();
 
   return useMutation({
     mutationFn: (values: AccountFormValues) => {
       if (!user) throw new Error("Not authenticated");
-      return createAccount(createClient(), user.id, values);
+      return createAccount(createClient(), user.id, values, currency);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });

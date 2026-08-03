@@ -3,7 +3,7 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { CategoryIcon, categoryName } from "@/components/transactions/CategoryPicker";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { formatCurrency } from "@/lib/utils";
+import { useFormatCurrency } from "@/hooks/use-currency";
 import type { CategoryBreakdownEntry } from "@/lib/reports";
 import type { Category } from "@/types";
 
@@ -15,6 +15,7 @@ export function CategoryBreakdownChart({
   categories: Category[];
 }) {
   const { locale, t } = useLanguage();
+  const formatCurrency = useFormatCurrency();
   const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
   if (entries.length === 0) {
