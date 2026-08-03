@@ -11,6 +11,7 @@ export const transactionFormSchema = z
     paymentMethodId: z.string().optional().or(z.literal("")),
     accountId: z.string().optional().or(z.literal("")),
     toAccountId: z.string().optional().or(z.literal("")),
+    projectId: z.string().optional().or(z.literal("")),
     priority: z.enum(["high", "medium", "low"]).optional().or(z.literal("")),
     date: z.string().min(1, { message: "Choose a date." }),
     merchant: z
@@ -133,6 +134,24 @@ export const accountFormSchema = z.object({
 
 export type AccountFormInput = z.input<typeof accountFormSchema>;
 export type AccountFormValues = z.output<typeof accountFormSchema>;
+
+export const projectFormSchema = z
+  .object({
+    name: z.string().min(1, { message: "Enter a project name." }).max(60),
+    color: hexColor,
+    icon: z.string().min(1, { message: "Choose an icon." }),
+    targetAmount: optionalAmount(),
+    startDate: z.string().optional().or(z.literal("")),
+    endDate: z.string().optional().or(z.literal("")),
+  })
+  .superRefine((values, ctx) => {
+    if (values.startDate && values.endDate && values.endDate < values.startDate) {
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "End date must be on or after the start date." });
+    }
+  });
+
+export type ProjectFormInput = z.input<typeof projectFormSchema>;
+export type ProjectFormValues = z.output<typeof projectFormSchema>;
 
 export const recurringTransactionFormSchema = z
   .object({

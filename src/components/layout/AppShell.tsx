@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Wallet, Settings, PiggyBank, Plus, Sparkles } from "lucide-react";
+import { LayoutDashboard, Receipt, Wallet, Settings, PiggyBank, Plus, Sparkles, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
@@ -15,6 +15,7 @@ function useNavItems() {
   return [
     { href: "/dashboard", label: t("nav.dashboard"), icon: LayoutDashboard },
     { href: "/transactions", label: t("nav.expenses"), icon: Receipt },
+    { href: "/projects", label: t("nav.projects"), icon: Target },
     { href: "/budget", label: t("nav.budget"), icon: Wallet },
     { href: "/settings", label: t("nav.settings"), icon: Settings },
   ];
@@ -110,7 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Plus className="size-6" />
         </Link>
 
-        {navItems.slice(2).map((item) => (
+        {navItems.slice(2, 5).map((item) => (
           <NavTab key={item.href} item={item} active={pathname.startsWith(item.href)} />
         ))}
       </nav>

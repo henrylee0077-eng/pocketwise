@@ -14,11 +14,15 @@ import { AccountPicker } from "@/components/accounts/AccountPicker";
 import { PaymentMethodPicker } from "@/components/transactions/PaymentMethodPicker";
 import { PriorityPicker } from "@/components/transactions/PriorityPicker";
 import { TagPicker } from "@/components/transactions/TagPicker";
+import { ProjectPicker } from "@/components/projects/ProjectPicker";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useCategories } from "@/hooks/use-categories";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { useCreateTransaction, useUpdateTransaction } from "@/hooks/use-transactions";
+import { useProjects } from "@/hooks/use-projects";
+import { usePreferredCurrency } from "@/hooks/use-currency";
+import { getCurrency } from "@/lib/currencies";
 import { isCategoryBlocked } from "@/lib/dashboard";
 import {
   transactionFormSchema,
@@ -42,9 +46,11 @@ export function TransactionForm({
 }) {
   const { t } = useLanguage();
   const { data: categories = [] } = useCategories();
+  const { data: projects = [] } = useProjects();
   const { summary } = useDashboard();
   const createTransaction = useCreateTransaction();
   const updateTransaction = useUpdateTransaction();
+  const currencySymbol = getCurrency(usePreferredCurrency()).symbol;
 
   const {
     register,
@@ -61,6 +67,7 @@ export function TransactionForm({
       paymentMethodId: transaction?.payment_method_id ?? initialValues?.paymentMethodId ?? "",
       accountId: transaction?.account_id ?? initialValues?.accountId ?? "",
       toAccountId: transaction?.to_account_id ?? initialValues?.toAccountId ?? "",
+      projectId: transaction?.project_id ?? initialValues?.projectId ?? "",
       priority: transaction?.priority ?? initialValues?.priority ?? "",
       date: transaction?.expense_date ?? initialValues?.date ?? todayIso(),
       merchant: transaction?.merchant ?? initialValues?.merchant ?? "",
@@ -74,6 +81,7 @@ export function TransactionForm({
   const paymentMethodId = watch("paymentMethodId");
   const accountId = watch("accountId");
   const toAccountId = watch("toAccountId");
+  const projectId = watch("projectId");
   const priority = watch("priority");
   const tagIds = watch("tagIds");
 
@@ -99,6 +107,7 @@ export function TransactionForm({
     setValue("type", nextType);
     setValue("categoryId", "");
     setValue("toAccountId", "");
+    if (nextType !== "expense") setValue("projectId", "");
   }
 
   async function onSubmit(values: TransactionFormValues) {
@@ -156,7 +165,7 @@ export function TransactionForm({
         <Label htmlFor="amount">{t("expenses.amount")}</Label>
         <div className="relative">
           <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
-            RM
+            {currencySymbol}
           </span>
           <Input
             id="amount"
@@ -205,6 +214,12 @@ export function TransactionForm({
             <Label>{t("transactions.account")}</Label>
             <AccountPicker value={accountId ?? ""} onChange={(id) => setValue("accountId", id)} />
           </div>
+          {type === "expense" && projects.length > 0 && (
+            <div className="flex flex-col gap-2">
+              <Label>{t("transactions.project")}</Label>
+              <ProjectPicker value={projectId ?? ""} onChange={(id) => setValue("projectId", id)} />
+            </div>
+          )}
         </>
       )}
 

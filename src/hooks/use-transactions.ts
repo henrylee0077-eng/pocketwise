@@ -8,6 +8,7 @@ import {
   createTransaction,
   deleteTransaction,
   fetchAccountTransactions,
+  fetchProjectTransactions,
   fetchTransactionsForRange,
   updateTransaction,
 } from "@/lib/queries/transactions";
@@ -52,6 +53,17 @@ export function useAccountTransactions(accountId: string) {
   });
 }
 
+/** Full history of expense transactions linked to one spending project — used by the project detail page. */
+export function useProjectTransactions(projectId: string) {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["transactions", user?.id, "project", projectId],
+    queryFn: () => fetchProjectTransactions(createClient(), projectId),
+    enabled: !!user && !!projectId,
+  });
+}
+
 export function useCreateTransaction() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -63,6 +75,7 @@ export function useCreateTransaction() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 }
@@ -76,6 +89,7 @@ export function useUpdateTransaction() {
       updateTransaction(createClient(), id, values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 }
@@ -88,6 +102,7 @@ export function useDeleteTransaction() {
     mutationFn: (id: string) => deleteTransaction(createClient(), id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
     },
   });
 }

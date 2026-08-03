@@ -106,6 +106,27 @@ export async function fetchAccountTransactions(
   return attachTags(supabase, transactions ?? []);
 }
 
+/**
+ * Full history of expense transactions linked to one spending project.
+ * Unlike `fetchAccountTransactions`, this is a plain equality filter — a
+ * transaction is either linked to a project or it isn't, no "touches it as
+ * source or destination" ambiguity like accounts have with transfers.
+ */
+export async function fetchProjectTransactions(
+  supabase: SupabaseClient<Database>,
+  projectId: string,
+): Promise<TransactionWithTags[]> {
+  const { data: transactions, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("project_id", projectId)
+    .order("expense_date", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return attachTags(supabase, transactions ?? []);
+}
+
 async function setTransactionTags(
   supabase: SupabaseClient<Database>,
   transactionId: string,
@@ -144,6 +165,7 @@ export async function createTransaction(
       note: values.note || null,
       account_id: values.accountId || null,
       to_account_id: values.type === "transfer" ? values.toAccountId || null : null,
+      project_id: values.type === "expense" ? values.projectId || null : null,
     })
     .select("*")
     .single();
@@ -175,6 +197,7 @@ export async function updateTransaction(
       note: values.note || null,
       account_id: values.accountId || null,
       to_account_id: values.type === "transfer" ? values.toAccountId || null : null,
+      project_id: values.type === "expense" ? values.projectId || null : null,
     })
     .eq("id", id)
     .select("*")

@@ -10,6 +10,8 @@ export type CategoryBudget = Database["public"]["Tables"]["category_budgets"]["R
 export type Account = Database["public"]["Tables"]["accounts"]["Row"];
 export type AccountBalance = Database["public"]["Views"]["account_balances"]["Row"];
 export type RecurringTransaction = Database["public"]["Tables"]["recurring_transactions"]["Row"];
+export type Project = Database["public"]["Tables"]["projects"]["Row"];
+export type ProjectSpend = Database["public"]["Views"]["project_spend"]["Row"];
 
 export type TransactionType = "expense" | "income" | "transfer";
 export type TransactionPriority = "high" | "medium" | "low";

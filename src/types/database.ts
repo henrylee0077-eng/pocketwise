@@ -234,6 +234,7 @@ export interface Database {
           account_id: string | null;
           to_account_id: string | null;
           recurring_transaction_id: string | null;
+          project_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -252,6 +253,7 @@ export interface Database {
           account_id?: string | null;
           to_account_id?: string | null;
           recurring_transaction_id?: string | null;
+          project_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -270,6 +272,7 @@ export interface Database {
           account_id?: string | null;
           to_account_id?: string | null;
           recurring_transaction_id?: string | null;
+          project_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -309,7 +312,59 @@ export interface Database {
             referencedRelation: "recurring_transactions";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "transactions_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          },
         ];
+      };
+      projects: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          icon: string;
+          color: string;
+          target_amount: number | null;
+          start_date: string | null;
+          end_date: string | null;
+          is_archived: boolean;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          icon?: string;
+          color?: string;
+          target_amount?: number | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          is_archived?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          icon?: string;
+          color?: string;
+          target_amount?: number | null;
+          start_date?: string | null;
+          end_date?: string | null;
+          is_archived?: boolean;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       transaction_tags: {
         Row: {
@@ -531,6 +586,25 @@ export interface Database {
           sort_order: number;
           opening_balance: number;
           current_balance: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Relationships: [];
+      };
+      project_spend: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          icon: string;
+          color: string;
+          target_amount: number | null;
+          start_date: string | null;
+          end_date: string | null;
+          is_archived: boolean;
+          sort_order: number;
+          spent: number;
+          transaction_count: number;
           created_at: string;
           updated_at: string;
         };
