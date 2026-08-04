@@ -12,6 +12,13 @@
 .DS_Store
 *.pem
 
+# Android signing / TWA build output — never commit private keys
+*.keystore
+*.jks
+signing-key-info.txt
+/PocketWise - Google Play package/
+/pocketwise-android-package*/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
