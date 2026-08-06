@@ -1,50 +1,43 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
+import { db, LOCAL_USER_ID, newId, nowIso } from "@/lib/local-db/schema";
 import type { CategoryBudget } from "@/types";
 import type { CategoryBudgetFormValues } from "@/lib/validations";
 
-export async function fetchCategoryBudgetsForMonth(
-  supabase: SupabaseClient<Database>,
-  monthIso: string,
-): Promise<CategoryBudget[]> {
-  const { data, error } = await supabase
-    .from("category_budgets")
-    .select("*")
-    .eq("month", monthIso);
-
-  if (error) throw error;
-  return data;
+export async function fetchCategoryBudgetsForMonth(monthIso: string): Promise<CategoryBudget[]> {
+  return db.categoryBudgets.where("month").equals(monthIso).toArray();
 }
 
 export async function upsertCategoryBudget(
-  supabase: SupabaseClient<Database>,
-  userId: string,
   monthIso: string,
   values: CategoryBudgetFormValues,
 ): Promise<CategoryBudget> {
-  const { data, error } = await supabase
-    .from("category_budgets")
-    .upsert(
-      {
-        user_id: userId,
+  const existing = await db.categoryBudgets
+    .where("[category_id+month]")
+    .equals([values.categoryId, monthIso])
+    .first();
+  const timestamp = nowIso();
+
+  const row: CategoryBudget = existing
+    ? {
+        ...existing,
+        amount: values.amount,
+        warning_threshold_percent: values.warningThresholdPercent,
+        updated_at: timestamp,
+      }
+    : {
+        id: newId(),
+        user_id: LOCAL_USER_ID,
         category_id: values.categoryId,
         month: monthIso,
         amount: values.amount,
         warning_threshold_percent: values.warningThresholdPercent,
-      },
-      { onConflict: "user_id,category_id,month" },
-    )
-    .select("*")
-    .single();
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
 
-  if (error) throw error;
-  return data;
+  await db.categoryBudgets.put(row);
+  return row;
 }
 
-export async function deleteCategoryBudget(
-  supabase: SupabaseClient<Database>,
-  id: string,
-): Promise<void> {
-  const { error } = await supabase.from("category_budgets").delete().eq("id", id);
-  if (error) throw error;
+export async function deleteCategoryBudget(id: string): Promise<void> {
+  await db.categoryBudgets.delete(id);
 }

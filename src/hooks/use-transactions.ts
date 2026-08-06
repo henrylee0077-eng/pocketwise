@@ -1,9 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { endOfMonth, parseISO } from "date-fns";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { createClient } from "@/lib/supabase/client";
+import { useLocalQuery } from "@/hooks/use-local-query";
 import {
   createTransaction,
   deleteTransaction,
@@ -22,87 +21,51 @@ function rangeForMonth(monthIso: string) {
 }
 
 export function useMonthTransactions(monthIso: string, filters: TransactionFilters = {}) {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["transactions", user?.id, monthIso, filters],
-    queryFn: () => fetchTransactionsForRange(createClient(), rangeForMonth(monthIso), filters),
-    enabled: !!user,
-  });
+  return useLocalQuery(
+    () => fetchTransactionsForRange(rangeForMonth(monthIso), filters),
+    [monthIso, JSON.stringify(filters)],
+  );
 }
 
 /** Fetches transactions for an arbitrary [start, end] ISO date range — used by reports. */
 export function useTransactionsForRange(startIso: string, endIso: string) {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["transactions", user?.id, "range", startIso, endIso],
-    queryFn: () => fetchTransactionsForRange(createClient(), { start: startIso, end: endIso }),
-    enabled: !!user,
-  });
+  return useLocalQuery(
+    () => fetchTransactionsForRange({ start: startIso, end: endIso }),
+    [startIso, endIso],
+  );
 }
 
 /** Full transaction history for one account (both as source and transfer destination) — used by the account detail page. */
 export function useAccountTransactions(accountId: string) {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["transactions", user?.id, "account", accountId],
-    queryFn: () => fetchAccountTransactions(createClient(), accountId),
-    enabled: !!user && !!accountId,
-  });
+  return useLocalQuery(
+    () => (accountId ? fetchAccountTransactions(accountId) : []),
+    [accountId],
+  );
 }
 
 /** Full history of expense transactions linked to one spending project — used by the project detail page. */
 export function useProjectTransactions(projectId: string) {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["transactions", user?.id, "project", projectId],
-    queryFn: () => fetchProjectTransactions(createClient(), projectId),
-    enabled: !!user && !!projectId,
-  });
+  return useLocalQuery(
+    () => (projectId ? fetchProjectTransactions(projectId) : []),
+    [projectId],
+  );
 }
 
 export function useCreateTransaction() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (values: TransactionFormValues) => {
-      if (!user) throw new Error("Not authenticated");
-      return createTransaction(createClient(), user.id, values);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
+    mutationFn: (values: TransactionFormValues) => createTransaction(values),
   });
 }
 
 export function useUpdateTransaction() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ id, values }: { id: string; values: TransactionFormValues }) =>
-      updateTransaction(createClient(), id, values),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
+      updateTransaction(id, values),
   });
 }
 
 export function useDeleteTransaction() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (id: string) => deleteTransaction(createClient(), id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
+    mutationFn: (id: string) => deleteTransaction(id),
   });
 }

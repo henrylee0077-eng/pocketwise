@@ -1,44 +1,22 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useMutation } from "@tanstack/react-query";
+import { useLocalQuery } from "@/hooks/use-local-query";
 import { createTag, deleteTag, fetchTags } from "@/lib/queries/tags";
 import type { TagFormValues } from "@/lib/validations";
-import { useAuth } from "@/components/providers/AuthProvider";
 
 export function useTags() {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["tags", user?.id],
-    queryFn: () => fetchTags(createClient()),
-    enabled: !!user,
-  });
+  return useLocalQuery(() => fetchTags(), []);
 }
 
 export function useCreateTag() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (values: TagFormValues) => {
-      if (!user) throw new Error("Not authenticated");
-      return createTag(createClient(), user.id, values);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tags", user?.id] });
-    },
+    mutationFn: (values: TagFormValues) => createTag(values),
   });
 }
 
 export function useDeleteTag() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (id: string) => deleteTag(createClient(), id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tags", user?.id] });
-    },
+    mutationFn: (id: string) => deleteTag(id),
   });
 }

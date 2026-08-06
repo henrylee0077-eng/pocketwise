@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { Settings, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -10,37 +11,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useGoogleAccount } from "@/hooks/use-google-backup";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
+/**
+ * There's no "signed in" concept anymore — every device has exactly one
+ * local user — so this just surfaces whichever Google account (if any) is
+ * connected for backup, and links into Settings to manage it. Nothing
+ * here gates access to the app.
+ */
 export function UserMenu() {
-  const { user } = useAuth();
+  const { data: account } = useGoogleAccount();
   const { t } = useLanguage();
 
-  const name = (user?.user_metadata?.full_name as string | undefined) ?? user?.email ?? "";
-  const avatarUrl = user?.user_metadata?.avatar_url as string | undefined;
-  const initial = name ? name.charAt(0).toUpperCase() : "?";
-
-  async function handleSignOut() {
-    await fetch("/auth/signout", { method: "POST" });
-    window.location.href = "/login";
-  }
+  const connected = account?.connected ?? false;
+  const name = account?.name ?? "";
+  const initial = name ? name.charAt(0).toUpperCase() : null;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button type="button" className="rounded-full outline-none ring-offset-2 focus-visible:ring-2 focus-visible:ring-ring">
           <Avatar>
-            <AvatarImage src={avatarUrl} alt={name} />
-            <AvatarFallback>{initial}</AvatarFallback>
+            {connected && <AvatarImage src={account?.picture ?? undefined} alt={name} />}
+            <AvatarFallback>
+              {initial ?? <User className="size-4 text-muted-foreground" />}
+            </AvatarFallback>
           </Avatar>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuLabel className="truncate">{name}</DropdownMenuLabel>
+        <DropdownMenuLabel className="truncate">
+          {connected ? name : t("settings.backup.title")}
+        </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleSignOut}>
-          <LogOut className="size-4" /> {t("auth.signOut")}
+        <DropdownMenuItem asChild>
+          <Link href="/settings">
+            <Settings className="size-4" /> {t("nav.settings")}
+          </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

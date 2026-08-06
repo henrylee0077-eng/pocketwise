@@ -1,8 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/providers/AuthProvider";
-import { createClient } from "@/lib/supabase/client";
+import { useMutation } from "@tanstack/react-query";
+import { useLocalQuery } from "@/hooks/use-local-query";
 import {
   deleteCategoryBudget,
   fetchCategoryBudgetsForMonth,
@@ -11,38 +10,17 @@ import {
 import type { CategoryBudgetFormValues } from "@/lib/validations";
 
 export function useCategoryBudgets(monthIso: string) {
-  const { user } = useAuth();
-
-  return useQuery({
-    queryKey: ["category-budgets", user?.id, monthIso],
-    queryFn: () => fetchCategoryBudgetsForMonth(createClient(), monthIso),
-    enabled: !!user,
-  });
+  return useLocalQuery(() => fetchCategoryBudgetsForMonth(monthIso), [monthIso]);
 }
 
 export function useUpsertCategoryBudget(monthIso: string) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (values: CategoryBudgetFormValues) => {
-      if (!user) throw new Error("Not authenticated");
-      return upsertCategoryBudget(createClient(), user.id, monthIso, values);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["category-budgets", user?.id, monthIso] });
-    },
+    mutationFn: (values: CategoryBudgetFormValues) => upsertCategoryBudget(monthIso, values),
   });
 }
 
 export function useDeleteCategoryBudget(monthIso: string) {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (id: string) => deleteCategoryBudget(createClient(), id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["category-budgets", user?.id, monthIso] });
-    },
+    mutationFn: (id: string) => deleteCategoryBudget(id),
   });
 }

@@ -1,85 +1,96 @@
 # PocketWise (省省账)
 
-"Don't let the end of the month leave you with only bread." — a bilingual (English / 简体中文), mobile-first personal expense tracker with monthly budgets, spending warnings, and automatic non-essential spending lockout.
+"Don't let the end of the month leave you with only bread." — a bilingual (English / 简体中文), mobile-first, installable personal finance app with accounts, budgets, spending projects, recurring transactions, reports, and an AI quick-add assistant.
 
 ## Stack
 
-Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind CSS v4 · shadcn-style components on Radix UI · Supabase (Postgres + Auth + Row Level Security) · TanStack Query · React Hook Form + Zod · Vercel.
+Next.js (App Router) · React · TypeScript · Tailwind CSS v4 · shadcn-style components on Radix UI · Dexie (IndexedDB) for on-device storage · Google Identity Services + Google Drive for optional backup/sync · TanStack Query · React Hook Form + Zod · Vercel.
+
+## Architecture: local-first, not a hosted database
+
+PocketWise stores all of your data — transactions, accounts, budgets, categories, tags, projects, recurring rules, settings — in the browser's own on-device storage (IndexedDB, via [Dexie](https://dexie.org/)). There is no central database and no per-user hosting cost that grows with the number of people using the app: every device holds only its own owner's data, the same as a file saved locally.
+
+Signing in with Google is entirely optional and only used for the "Backup & Sync" feature in Settings. When connected, PocketWise writes a single backup file directly from the browser to a hidden, app-only folder in the user's own Google Drive (Google's ["app data" folder](https://developers.google.com/workspace/drive/api/guides/appdata), free up to 15GB, invisible in the user's regular Drive UI). This is what lets someone move to a new phone (restore) or keep two devices in sync (backup on one, restore on the other) — all inside their own Google account, never through a server we operate.
+
+The server-side code that's left is three small, stateless Next.js API routes — none of them have a database, and none of them persist anything:
+- `/api/quick-add/parse` calls Google's Gemini API to parse the free-text "Quick Add" assistant. The client sends the conversation plus its already-loaded categories/accounts/payment methods in the request; the route returns a parsed draft.
+- `/api/export/xlsx` and `/api/export/pdf` generate report files. These run server-side (not in the browser) because `exceljs` and `@react-pdf/renderer` depend on Node-only packages that don't bundle for the browser — but the client still sends its own already-loaded local data in the request, and the generated file is streamed straight back with nothing saved.
 
 ## Features
 
-- Daily expense tracking (amount in RM, category, date, notes).
-- Eight default categories: Meals, Transportation, Daily Necessities, Medical, Shopping, Entertainment, Coffee & Bubble Tea, Others.
-- Dashboard: today's spending, month-to-date spending, remaining budget, days left in the month, and a recommended daily budget (remaining budget ÷ remaining days).
-- Monthly budget with a configurable warning threshold (default 80%). Crossing it shows a warning banner and highlights the remaining budget in red.
-- When the monthly budget is fully used, Shopping, Entertainment, and Coffee & Bubble Tea are blocked from new entries; Meals, Transportation, Daily Necessities, Medical, and Others always remain available.
-- Google sign-in; every row in the database is scoped to its owner via Postgres Row Level Security, so no user can ever see another user's data.
+- Accounts (cash, bank, e-wallet, investment, credit card, loan, installment) with running balances and net worth.
+- Daily transaction tracking — expense, income, and transfers between accounts — with categories, tags, payment methods, merchant, priority, and notes.
+- Spending projects (e.g. a trip or renovation) that roll up linked expenses against an optional target amount.
+- Monthly budgets with a configurable warning threshold, plus per-category budgets.
+- Recurring transactions (daily/weekly/monthly/yearly), generated automatically on-device when the app is opened or brought back to the foreground.
+- Reports (week/month/year) with category breakdowns and trend charts, exportable to Excel and PDF.
+- "Quick Add" — a conversational AI assistant (Google Gemini) that turns a sentence like "today lunch RM20" into a saved transaction, asking a clarifying question only when something required is missing.
+- Optional app-lock PIN (hashed on-device with Web Crypto PBKDF2 — never sent anywhere, never included in backups).
+- Optional Google Drive backup, restore, and cross-device sync.
 - English / 中文 toggle, persisted per-device. Light and dark mode, following the system by default.
-- Fully responsive: phone, tablet, and desktop.
+- Fully responsive and installable as a PWA / Android TWA.
 
 ## Project structure
 
 ```
 src/
-  app/                 App Router pages (login, auth callback, dashboard, expenses, budget, settings)
-  components/          ui/ (design-system primitives), dashboard/, expenses/, budget/, layout/, providers/
-  hooks/               TanStack Query hooks (categories, expenses, budget, dashboard)
+  app/                 App Router pages (dashboard, transactions, budget, projects, reports, settings, ask-ai)
+  app/api/quick-add/   Stateless server route — Gemini call for Quick Add
+  app/api/export/      Stateless server routes — Excel (ExcelJS) and PDF (@react-pdf/renderer) generation; Node-only libraries, so these run server-side, but the client sends its own local data in the request and nothing is persisted
+  components/          ui/ (design-system primitives), dashboard/, transactions/, settings/, security/, layout/, providers/
+  hooks/               TanStack Query + Dexie live-query hooks (accounts, transactions, budgets, security, google backup, …)
   i18n/                Translation dictionaries + language context
-  lib/                 Supabase clients, validation schemas, currency/date utilities, dashboard math
-  types/               Database + domain types
-supabase/migrations/   SQL schema, RLS policies, seed data
+  lib/local-db/        Dexie schema, seed data, derived/computed views, PIN security, recurring-transaction engine
+  lib/google-drive/    Google Identity Services sign-in + Drive app-data backup/restore
+  lib/export/          Excel (ExcelJS) and PDF (@react-pdf/renderer) report generation, used by app/api/export/
+  lib/queries/         Data-access layer — every function reads/writes Dexie directly
+  types/               Domain types (row shapes originally modeled on a Postgres schema, now the Dexie row shapes too)
 ```
 
-The schema already carries a few forward-looking columns (`profiles.household_id`, per-row `expenses.currency`) so that shared family accounts and multi-currency support can be added later without a breaking migration — see the comment block at the bottom of `supabase/migrations/0001_init.sql` for the fuller roadmap (income, savings goals, recurring expenses, bills, loans, receipt OCR, notifications).
+## 1. Set up Google Sign-In (for backup/sync)
 
-## 1. Create a Supabase project
+This step is only needed for the optional "Backup & Sync" feature — the app works fully without it.
 
-1. Go to [supabase.com](https://supabase.com/dashboard) and create a new project (pick any region close to your users).
-2. Once it's provisioned, open **Project Settings → API** and note down the **Project URL** and the **anon public key** — you'll need both shortly.
-3. Open the **SQL Editor**, paste the entire contents of `supabase/migrations/0001_init.sql`, and run it. This creates the `profiles`, `categories`, `expenses`, and `budgets` tables, enables Row Level Security with owner-only policies, and seeds the eight default categories.
+1. In the [Google Cloud Console](https://console.cloud.google.com/), create (or reuse) a project.
+2. Go to **APIs & Services → OAuth consent screen** and configure it as an External app (add your own email as a test user if it's still in testing mode).
+3. Go to **APIs & Services → Library** and enable the **Google Drive API** and **Google People API**.
+4. Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**, choose **Web application**, and add `http://localhost:3000` and your production URL (e.g. `https://pocketwise.vercel.app`) under **Authorized JavaScript origins**. No redirect URI is needed — sign-in happens via a popup token flow, not a redirect.
+5. Copy the generated **Client ID**.
 
-## 2. Set up Google sign-in
+## 2. Configure environment variables
 
-1. In the Supabase dashboard, go to **Authentication → Sign In / Providers → Google** and toggle it on. Copy the **Callback URL** shown there — it looks like `https://<project-ref>.supabase.co/auth/v1/callback`.
-2. In the [Google Cloud Console](https://console.cloud.google.com/), create (or reuse) a project, then go to **APIs & Services → OAuth consent screen** and configure it as an External app (add your own email as a test user if it's still in testing mode).
-3. Go to **APIs & Services → Credentials → Create Credentials → OAuth client ID**, choose **Web application**, and under **Authorized redirect URIs** paste the Supabase callback URL from step 1.
-4. Copy the generated **Client ID** and **Client Secret** back into the Supabase Google provider settings and save.
-5. Under **Authentication → URL Configuration**, set the **Site URL** to your production URL once you have it (e.g. `https://pocketwise.vercel.app`), and add `http://localhost:3000/auth/callback` plus your production `/auth/callback` URL under **Redirect URLs**.
-
-## 3. Configure environment variables
-
-Copy `.env.example` to `.env.local` and fill in the two Supabase values from step 1:
+Copy `.env.example` to `.env.local` and fill in:
 
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GEMINI_API_KEY=your-gemini-api-key
 ```
 
-## 4. Run it locally
+`GEMINI_API_KEY` powers the Quick Add assistant (`/api/quick-add/parse`) — get one from [Google AI Studio](https://aistudio.google.com/apikey). Both variables are optional at build time; the app runs without them, just without Quick Add and/or Google backup.
+
+## 3. Run it locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000 — you should land on the login screen. Sign in with Google, set a monthly budget on the Budget tab, and start logging expenses.
+Open http://localhost:3000 — you'll land straight on the dashboard with a freshly seeded set of default categories and payment methods. No sign-in required.
 
-## 5. Deploy to Vercel
+## 4. Deploy to Vercel
 
 1. Push this project to a GitHub repository.
 2. Go to [vercel.com/new](https://vercel.com/new) and import the repository (framework preset auto-detects Next.js).
-3. Add the same three environment variables from step 3, but set `NEXT_PUBLIC_SITE_URL` to your real Vercel URL (e.g. `https://pocketwise.vercel.app`) — you can update this after the first deploy once you know the assigned domain.
-4. Deploy. Once it's live, go back to Supabase **Authentication → URL Configuration** and add `https://<your-vercel-domain>/auth/callback` to the redirect URL allow-list (and update the Site URL), otherwise Google sign-in will redirect back to an error page.
-5. Redeploy (or just refresh) — your public HTTPS URL is now ready for daily use on both mobile and desktop browsers.
+3. Add the two environment variables from step 2, using your real production URL for the Google OAuth client's authorized origins (step 1.4).
+4. Deploy.
 
-## Notes on the "budget enforcement" rule
+## Notes on data & privacy
 
-Per the product spec, once total spending for the month reaches the full budget amount, new expenses in **Shopping**, **Entertainment**, and **Coffee & Bubble Tea** are blocked (the category picker greys them out with a lock icon, and the API layer double-checks server-side data before submit). **Meals**, **Transportation**, **Daily Necessities**, **Medical**, and **Others** are always available, since the spec only names the first three as non-essential. If you'd like `Others` to be blockable too, flip `is_essential` to `false` for that row in the `categories` table.
+See `/privacy` (also linked in the app) for the full policy. In short: there's no PocketWise-operated database, so there's nothing for us to lose in a breach and no per-user hosting cost — data lives on-device, with backups (if enabled) living in the user's own Google Drive.
 
 ## Testing checklist
 
-- [x] `npm run typecheck` — no TypeScript errors.
-- [x] `npm run lint` — no errors (one informational React Compiler notice about `react-hook-form`'s `watch`, which is expected and harmless).
-- [x] `npm run build` — production build succeeds.
-- [ ] End-to-end sign-in, expense CRUD, budget warning/enforcement — verify against your own Supabase project after following steps 1–3 above (a placeholder project can't be exercised from this environment).
+- [ ] `npm run typecheck` — no TypeScript errors.
+- [ ] `npm run lint` — no errors.
+- [ ] `npm run build` — production build succeeds.
+- [ ] Core flows on a fresh browser profile: seed data appears, create/edit/delete a transaction, set a budget, create a recurring rule and confirm it generates on next load, connect Google Drive and back up / restore, set and verify a PIN lock, reset the device from Settings.

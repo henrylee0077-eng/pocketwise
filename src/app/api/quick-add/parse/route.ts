@@ -1,12 +1,8 @@
 import { Type } from "@google/genai";
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createGoogleAIClient, QUICK_ADD_MODEL } from "@/lib/google-ai";
-import { createCategory, fetchCategories } from "@/lib/queries/categories";
-import { fetchAccountBalances } from "@/lib/queries/accounts";
-import { createPaymentMethod, fetchPaymentMethods } from "@/lib/queries/payment-methods";
 import { quickAddExtractionSchema, quickAddRequestSchema } from "@/lib/validations";
-import { slugify, todayIso } from "@/lib/utils";
+import { todayIso } from "@/lib/utils";
 import { getCurrency } from "@/lib/currencies";
 
 const OTHER_CATEGORY_KEYS = new Set(["others", "other_income"]);
@@ -85,27 +81,25 @@ const responseSchema = {
   ],
 };
 
+/**
+ * Stateless by design — PocketWise's data lives on-device (see
+ * src/lib/local-db), not in a database this route can query. The client
+ * sends its already-loaded categories/accounts/payment methods (and
+ * preferred currency) alongside the conversation; this route only calls
+ * Gemini and validates/sanitizes ids against the lists it was given. If
+ * the model names a brand new category or payment method that doesn't
+ * exist yet, this returns `newCategoryName`/`newPaymentMethodName` in the
+ * draft instead of creating anything itself — the client creates it
+ * locally after receiving a "ready" response (see useQuickAddChat).
+ */
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const body = quickAddRequestSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: body.error.issues[0]?.message ?? "Invalid request" }, { status: 400 });
   }
 
-  const [categories, accounts, paymentMethods, profileRes] = await Promise.all([
-    fetchCategories(supabase),
-    fetchAccountBalances(supabase),
-    fetchPaymentMethods(supabase),
-    supabase.from("profiles").select("preferred_currency").eq("id", user.id).single(),
-  ]);
-  const currency = getCurrency(profileRes.data?.preferred_currency ?? "MYR");
+  const { turns, categories, accounts, paymentMethods } = body.data;
+  const currency = getCurrency(body.data.currency);
 
   const categoryList = categories
     .map((c) => `${c.id} :: ${c.name_en} / ${c.name_zh} (${c.type})`)
@@ -157,7 +151,7 @@ Respond only with JSON matching the schema.`;
   try {
     const response = await ai.models.generateContent({
       model: QUICK_ADD_MODEL,
-      contents: body.data.turns.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
+      contents: turns.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
       config: {
         systemInstruction,
         responseMimeType: "application/json",
@@ -208,80 +202,48 @@ Respond only with JSON matching the schema.`;
     amount: extraction.amount,
     date: extraction.date,
     categoryId: categoryIds.has(extraction.categoryId) ? extraction.categoryId : "",
+    newCategoryName: "",
     accountId: accountIds.has(extraction.accountId) ? extraction.accountId : "",
     toAccountId: accountIds.has(extraction.toAccountId) ? extraction.toAccountId : "",
     paymentMethodId: paymentMethodIds.has(extraction.paymentMethodId) ? extraction.paymentMethodId : "",
+    newPaymentMethodName: "",
     merchant: extraction.merchant,
     note: extraction.note,
     priority: priorities.has(extraction.priority) ? extraction.priority : "",
   };
 
-  // If the model couldn't match an existing category but the user named a
-  // specific one in their own words, create it automatically instead of
-  // falling back to Others/Other Income — this is the user's escape hatch
-  // for "I want to add another category" without a separate trip to
-  // Settings. Match against existing categories first (by key or name) so
-  // repeated use of the same new category doesn't create duplicates.
+  // The model named a specific category/payment method that isn't in the
+  // list this route was given. There's no database here to create it in —
+  // this route just passes the name through (after checking it doesn't
+  // actually match an existing one by key/name, to avoid asking the client
+  // to create an accidental duplicate) and the client creates it locally
+  // once it saves the transaction. See useQuickAddChat's resolveDraft.
   const trimmedNewCategoryName = extraction.newCategoryName.trim();
   if (draft.type !== "transfer" && !draft.categoryId && trimmedNewCategoryName) {
-    const categoryType = draft.type;
-    const candidateKey = slugify(trimmedNewCategoryName);
     const existingMatch = categories.find(
       (c) =>
-        c.type === categoryType &&
-        (c.key === candidateKey ||
-          c.name_en.toLowerCase() === trimmedNewCategoryName.toLowerCase() ||
+        c.type === draft.type &&
+        (c.name_en.toLowerCase() === trimmedNewCategoryName.toLowerCase() ||
           c.name_zh === trimmedNewCategoryName),
     );
     if (existingMatch) {
       draft.categoryId = existingMatch.id;
     } else {
-      try {
-        const created = await createCategory(supabase, user.id, {
-          type: categoryType,
-          nameEn: trimmedNewCategoryName,
-          nameZh: trimmedNewCategoryName,
-          icon: "Tag",
-          color: "#6B7280",
-          isEssential: true,
-        });
-        draft.categoryId = created.id;
-      } catch (error) {
-        console.error("quick-add auto-create category failed", error);
-        // Fall through — categoryId stays empty, the check below will ask.
-      }
+      draft.newCategoryName = trimmedNewCategoryName;
     }
   }
 
-  // Same escape hatch for payment methods: if the user named a specific
-  // rail/app that isn't in the list (system defaults now cover the common
-  // Malaysian ones — cash, cards, bank transfer, cheque, Touch 'n Go
-  // eWallet, GrabPay, ShopeePay, Boost, DuitNow — plus generic E-Wallet),
-  // create a custom one instead of forcing a generic bucket or looping on
-  // a clarifying question.
   const trimmedNewPaymentMethodName = extraction.newPaymentMethodName.trim();
   if (draft.type !== "transfer" && !draft.paymentMethodId && trimmedNewPaymentMethodName) {
-    const candidateKey = slugify(trimmedNewPaymentMethodName);
     const existingMatch = paymentMethods.find(
       (p) =>
-        p.key === candidateKey ||
         p.name_en.toLowerCase() === trimmedNewPaymentMethodName.toLowerCase() ||
         p.name_zh === trimmedNewPaymentMethodName,
     );
     if (existingMatch) {
       draft.paymentMethodId = existingMatch.id;
     } else {
-      try {
-        const created = await createPaymentMethod(supabase, user.id, {
-          nameEn: trimmedNewPaymentMethodName,
-          nameZh: trimmedNewPaymentMethodName,
-          icon: "Smartphone",
-        });
-        draft.paymentMethodId = created.id;
-      } catch (error) {
-        console.error("quick-add auto-create payment method failed", error);
-        // Fall through — paymentMethodId stays empty, the check below will ask.
-      }
+      draft.newPaymentMethodName = trimmedNewPaymentMethodName;
     }
   }
 
@@ -309,7 +271,9 @@ Respond only with JSON matching the schema.`;
   // Final sanity check even after the model said "ready" — if id resolution
   // dropped something essential (or the model was overconfident), ask
   // rather than silently save an incomplete transaction. Checked in a fixed
-  // order so only one question is ever asked per turn.
+  // order so only one question is ever asked per turn. A pending
+  // newCategoryName/newPaymentMethodName counts as "resolved" here since
+  // the client will turn it into a real id before saving.
   if (draft.type === "transfer") {
     if (!draft.accountId || !draft.toAccountId) {
       return NextResponse.json({
@@ -318,20 +282,22 @@ Respond only with JSON matching the schema.`;
       });
     }
   } else {
-    if (!draft.categoryId) {
+    if (!draft.categoryId && !draft.newCategoryName) {
       return NextResponse.json({
         status: "needs_clarification",
         question: "Which category should this go under?",
       });
     }
-    if (!draft.paymentMethodId) {
+    if (!draft.paymentMethodId && !draft.newPaymentMethodName) {
       return NextResponse.json({
         status: "needs_clarification",
         question: "How did you pay for this — cash, debit, credit card, e-wallet, or bank transfer?",
       });
     }
     // "Others" / "Other Income" are catch-all buckets by design, so a
-    // merchant name is optional there rather than a required field.
+    // merchant name is optional there rather than a required field. A
+    // brand new category is never the catch-all, so merchant stays
+    // required in that case.
     const resolvedCategory = categories.find((c) => c.id === draft.categoryId);
     const isCatchAllCategory = resolvedCategory ? OTHER_CATEGORY_KEYS.has(resolvedCategory.key) : false;
     if (!isCatchAllCategory && !draft.merchant.trim()) {

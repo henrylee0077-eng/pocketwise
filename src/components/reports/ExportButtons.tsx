@@ -5,18 +5,18 @@ import { FileSpreadsheet, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/i18n/LanguageProvider";
+import { usePreferredCurrency } from "@/hooks/use-currency";
+import { fetchCategories } from "@/lib/queries/categories";
+import { fetchAccountBalances } from "@/lib/queries/accounts";
+import { fetchPaymentMethods } from "@/lib/queries/payment-methods";
+import { fetchTransactionsForRange } from "@/lib/queries/transactions";
 import type { ReportRange } from "@/lib/reports";
 
-async function downloadExport(format: "xlsx" | "pdf", range: ReportRange, label: string) {
-  const params = new URLSearchParams({ start: range.startIso, end: range.endIso });
-  const res = await fetch(`/api/export/${format}?${params.toString()}`);
-  if (!res.ok) throw new Error("Export failed");
-
-  const blob = await res.blob();
+function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `pocketwise-${label}.${format}`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -25,13 +25,37 @@ async function downloadExport(format: "xlsx" | "pdf", range: ReportRange, label:
 
 export function ExportButtons({ range }: { range: ReportRange }) {
   const { t } = useLanguage();
+  const currency = usePreferredCurrency();
   const [pending, setPending] = useState<"xlsx" | "pdf" | null>(null);
 
   async function handleExport(format: "xlsx" | "pdf") {
     setPending(format);
     try {
-      await downloadExport(format, range, `${range.startIso}_${range.endIso}`);
-    } catch {
+      const [transactions, categories, accounts, paymentMethods] = await Promise.all([
+        fetchTransactionsForRange({ start: range.startIso, end: range.endIso }),
+        fetchCategories(),
+        fetchAccountBalances(),
+        fetchPaymentMethods(),
+      ]);
+
+      const res = await fetch(`/api/export/${format}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transactions,
+          categories: categories.map((c) => ({ id: c.id, name_en: c.name_en })),
+          accounts: accounts.map((a) => ({ id: a.id, name: a.name })),
+          paymentMethods: paymentMethods.map((p) => ({ id: p.id, name_en: p.name_en })),
+          currency,
+          range: { startIso: range.startIso, endIso: range.endIso },
+        }),
+      });
+      if (!res.ok) throw new Error("Export failed");
+
+      const blob = await res.blob();
+      downloadBlob(blob, `pocketwise-${range.startIso}_${range.endIso}.${format}`);
+    } catch (error) {
+      console.error(`${format} export failed`, error);
       toast.error(t("common.error"));
     } finally {
       setPending(null);

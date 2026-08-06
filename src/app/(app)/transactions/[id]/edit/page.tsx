@@ -3,36 +3,17 @@
 import { use } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { TransactionForm } from "@/components/transactions/TransactionForm";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { createClient } from "@/lib/supabase/client";
-import { useAuth } from "@/components/providers/AuthProvider";
-import type { TransactionWithTags } from "@/types";
+import { useLocalQuery } from "@/hooks/use-local-query";
+import { fetchTransactionById } from "@/lib/queries/transactions";
 
 export default function EditTransactionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { t } = useLanguage();
-  const { user } = useAuth();
 
-  const { data: transaction, isLoading } = useQuery({
-    queryKey: ["transaction", id],
-    queryFn: async (): Promise<TransactionWithTags> => {
-      const supabase = createClient();
-      const { data, error } = await supabase.from("transactions").select("*").eq("id", id).single();
-      if (error) throw error;
-
-      const { data: tagLinks, error: tagError } = await supabase
-        .from("transaction_tags")
-        .select("tag_id")
-        .eq("transaction_id", id);
-      if (tagError) throw tagError;
-
-      return { ...data, tagIds: (tagLinks ?? []).map((l) => l.tag_id) };
-    },
-    enabled: !!user,
-  });
+  const { data: transaction, isLoading } = useLocalQuery(() => fetchTransactionById(id), [id]);
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 pb-16 pt-6 sm:px-6">

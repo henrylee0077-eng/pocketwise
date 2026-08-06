@@ -1,7 +1,8 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useMutation } from "@tanstack/react-query";
+import { useLocalQuery } from "@/hooks/use-local-query";
+import { generateDueRecurringTransactions } from "@/lib/local-db/recurring";
 import {
   createRecurringTransaction,
   deleteRecurringTransaction,
@@ -10,83 +11,45 @@ import {
   updateRecurringTransaction,
 } from "@/lib/queries/recurring-transactions";
 import type { RecurringTransactionFormValues } from "@/lib/validations";
-import { useAuth } from "@/components/providers/AuthProvider";
 
 export function useRecurringTransactions() {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ["recurring-transactions", user?.id],
-    queryFn: () => fetchRecurringTransactions(createClient()),
-    enabled: Boolean(user),
-    staleTime: 30_000,
-  });
-}
-
-function useInvalidateRecurring() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  return () => {
-    queryClient.invalidateQueries({ queryKey: ["recurring-transactions", user?.id] });
-  };
+  return useLocalQuery(() => fetchRecurringTransactions(), []);
 }
 
 export function useCreateRecurringTransaction() {
-  const { user } = useAuth();
-  const invalidate = useInvalidateRecurring();
-
   return useMutation({
-    mutationFn: (values: RecurringTransactionFormValues) => {
-      if (!user) throw new Error("Not authenticated");
-      return createRecurringTransaction(createClient(), user.id, values);
-    },
-    onSuccess: invalidate,
+    mutationFn: (values: RecurringTransactionFormValues) => createRecurringTransaction(values),
   });
 }
 
 export function useUpdateRecurringTransaction() {
-  const invalidate = useInvalidateRecurring();
-
   return useMutation({
     mutationFn: ({ id, values }: { id: string; values: RecurringTransactionFormValues }) =>
-      updateRecurringTransaction(createClient(), id, values),
-    onSuccess: invalidate,
+      updateRecurringTransaction(id, values),
   });
 }
 
 export function useSetRecurringTransactionActive() {
-  const invalidate = useInvalidateRecurring();
-
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
-      setRecurringTransactionActive(createClient(), id, isActive),
-    onSuccess: invalidate,
+      setRecurringTransactionActive(id, isActive),
   });
 }
 
 export function useDeleteRecurringTransaction() {
-  const invalidate = useInvalidateRecurring();
-
   return useMutation({
-    mutationFn: (id: string) => deleteRecurringTransaction(createClient(), id),
-    onSuccess: invalidate,
+    mutationFn: (id: string) => deleteRecurringTransaction(id),
   });
 }
 
-/** Calls the "generate now" API route, then refreshes everything it could have changed. */
+/**
+ * Runs the "generate due occurrences" sweep directly against the local
+ * database — no server round trip. Dexie's live queries pick up every
+ * table this touches (recurringTransactions, transactions) automatically,
+ * so nothing needs manual invalidation afterward.
+ */
 export function useGenerateRecurringNow() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/recurring/generate", { method: "POST" });
-      if (!res.ok) throw new Error("Generation failed");
-      return (await res.json()) as { rulesProcessed: number; transactionsGenerated: number };
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["recurring-transactions", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["transactions", user?.id] });
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    mutationFn: () => generateDueRecurringTransactions(),
   });
 }

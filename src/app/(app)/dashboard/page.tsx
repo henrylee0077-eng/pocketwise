@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { useAuth } from "@/components/providers/AuthProvider";
+import { useGoogleAccount } from "@/hooks/use-google-backup";
 import { useLanguage } from "@/i18n/LanguageProvider";
 import { useDashboard } from "@/hooks/use-dashboard";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
@@ -26,16 +26,15 @@ function useGreetingKey() {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { data: account } = useGoogleAccount();
   const { t } = useLanguage();
   const { summary, transactions, isLoading } = useDashboard();
   const { data: accounts = [] } = useAccounts();
   const greetingKey = useGreetingKey();
 
-  const firstName =
-    (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
-    user?.email?.split("@")[0] ??
-    "";
+  // Only a Google-connected name is ever available — nothing requires
+  // signing in, so this is often empty and the greeting just omits it.
+  const firstName = account?.name?.split(" ")[0] ?? "";
 
   if (isLoading || !summary) {
     return (

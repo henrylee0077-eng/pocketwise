@@ -2,9 +2,111 @@
 
 import { useState, type ReactNode } from "react";
 import { Loader2, PiggyBank } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PinInput } from "@/components/security/PinInput";
 import { useLanguage } from "@/i18n/LanguageProvider";
-import { usePinLock, useVerifyPin } from "@/hooks/use-security";
+import { usePinLock, useResetAccount, useVerifyPin } from "@/hooks/use-security";
+
+const RESET_CONFIRM_WORD = "reset";
+
+function ForgotPinDialog({ onReset }: { onReset: () => void }) {
+  const { t } = useLanguage();
+  const resetAccount = useResetAccount();
+  const [open, setOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const textMatches = confirmText.trim().toLowerCase() === RESET_CONFIRM_WORD;
+
+  function handleOpenChange(next: boolean) {
+    if (resetAccount.isPending) return;
+    setOpen(next);
+    if (!next) {
+      setConfirmText("");
+      setError(null);
+    }
+  }
+
+  async function handleConfirm() {
+    if (!textMatches) return;
+    setError(null);
+    try {
+      await resetAccount.mutateAsync();
+      onReset();
+    } catch {
+      setError(t("common.error"));
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      >
+        {t("security.lock.forgot")}
+      </button>
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-destructive">{t("security.lock.resetDialogTitle")}</DialogTitle>
+            <DialogDescription>{t("security.lock.resetDialogWarning")}</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="lock-reset-confirm">{t("security.lock.resetTypeToConfirm")}</Label>
+            <Input
+              id="lock-reset-confirm"
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="RESET"
+              autoComplete="off"
+              disabled={resetAccount.isPending}
+            />
+          </div>
+
+          {error && <p className="text-center text-sm text-destructive">{error}</p>}
+          {resetAccount.isPending && (
+            <div className="flex justify-center">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => handleOpenChange(false)}
+              disabled={resetAccount.isPending}
+            >
+              {t("security.pinDialog.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!textMatches || resetAccount.isPending}
+              onClick={handleConfirm}
+            >
+              {t("security.lock.resetConfirmButton")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
   const { t } = useLanguage();
@@ -32,11 +134,6 @@ function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
       setPin("");
       setError(t("common.error"));
     }
-  }
-
-  async function handleSignOut() {
-    await fetch("/auth/signout", { method: "POST" });
-    window.location.href = "/login";
   }
 
   return (
@@ -68,23 +165,18 @@ function PinLockScreen({ onUnlock }: { onUnlock: () => void }) {
         ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={handleSignOut}
-        className="text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-      >
-        {t("security.lock.forgot")}
-      </button>
+      <ForgotPinDialog onReset={onUnlock} />
     </div>
   );
 }
 
 /**
- * Gates the entire app behind a PIN lock screen when one is set, layered on
- * top of the real Supabase session (see supabase/migrations/0004 for why
- * the PIN is only ever a quick-unlock convenience, never a standalone
- * credential). Renders a lightweight loading state while we determine lock
- * status, so authenticated content never flashes before the gate decides.
+ * Gates the entire app behind a PIN lock screen when one is set. There's
+ * no server session underneath anymore — every device has exactly one
+ * local user — so the only two states are "PIN set and locked" and
+ * "unlocked/no PIN". Renders a lightweight loading state while we read the
+ * lock status out of local settings, so content never flashes before the
+ * gate decides.
  */
 export function AppLockGate({ children }: { children: ReactNode }) {
   const { locked, ready, markUnlocked } = usePinLock();

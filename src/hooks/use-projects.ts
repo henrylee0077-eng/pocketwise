@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useMutation } from "@tanstack/react-query";
+import { useLocalQuery } from "@/hooks/use-local-query";
 import {
   createProject,
   deleteProject,
@@ -10,65 +10,36 @@ import {
   updateProject,
 } from "@/lib/queries/projects";
 import type { ProjectFormValues } from "@/lib/validations";
-import { useAuth } from "@/components/providers/AuthProvider";
 
 export function useProjects() {
-  return useQuery({
-    queryKey: ["projects"],
-    queryFn: () => fetchProjectSpend(createClient()),
-    staleTime: 30_000,
-  });
+  return useLocalQuery(() => fetchProjectSpend(), []);
 }
 
 export function useCreateProject() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (values: ProjectFormValues) => {
-      if (!user) throw new Error("Not authenticated");
-      return createProject(createClient(), user.id, values);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
+    mutationFn: (values: ProjectFormValues) => createProject(values),
   });
 }
 
 export function useUpdateProject() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ id, values }: { id: string; values: ProjectFormValues }) =>
-      updateProject(createClient(), id, values),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
+      updateProject(id, values),
   });
 }
 
 export function useSetProjectArchived() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ id, isArchived }: { id: string; isArchived: boolean }) =>
-      setProjectArchived(createClient(), id, isArchived),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-    },
+      setProjectArchived(id, isArchived),
   });
 }
 
 export function useDeleteProject() {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (id: string) => deleteProject(createClient(), id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      // Deleting a project unlinks (not deletes) its transactions server-side,
-      // so cached transaction lists need to refetch to drop the stale link.
-      queryClient.invalidateQueries({ queryKey: ["transactions"] });
-    },
+    // deleteProject also unlinks (sets project_id -> null on) any
+    // transactions that referenced it; Dexie's live queries pick up both
+    // table changes automatically, no manual cache invalidation needed.
+    mutationFn: (id: string) => deleteProject(id),
   });
 }

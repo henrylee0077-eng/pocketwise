@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
-import { AuthProvider } from "@/components/providers/AuthProvider";
+import { LocalDbProvider } from "@/components/providers/LocalDbProvider";
 import { ServiceWorkerRegister } from "@/components/providers/ServiceWorkerRegister";
 import { LanguageProvider } from "@/i18n/LanguageProvider";
 import "./globals.css";
@@ -45,11 +45,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <LanguageProvider>
             <QueryProvider>
-              <AuthProvider>
+              <LocalDbProvider>
                 {children}
                 <Toaster position="top-center" richColors closeButton />
                 <ServiceWorkerRegister />
-              </AuthProvider>
+              </LocalDbProvider>
             </QueryProvider>
           </LanguageProvider>
         </ThemeProvider>

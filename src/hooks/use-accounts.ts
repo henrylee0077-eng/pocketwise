@@ -1,7 +1,7 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createClient } from "@/lib/supabase/client";
+import { useMutation } from "@tanstack/react-query";
+import { useLocalQuery } from "@/hooks/use-local-query";
 import {
   createAccount,
   deleteAccount,
@@ -10,67 +10,39 @@ import {
   updateAccount,
 } from "@/lib/queries/accounts";
 import type { AccountFormValues } from "@/lib/validations";
-import { useAuth } from "@/components/providers/AuthProvider";
 import { usePreferredCurrency } from "@/hooks/use-currency";
 
 export function useAccounts() {
-  return useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => fetchAccountBalances(createClient()),
-    staleTime: 30_000,
-  });
+  return useLocalQuery(() => fetchAccountBalances(), []);
 }
 
 export function useCreateAccount() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  // PocketWise is single-currency-per-user (see set_preferred_currency RPC),
-  // so every new account is denominated in whatever the user has chosen —
+  // PocketWise is single-currency-per-user (see setPreferredCurrency), so
+  // every new account is denominated in whatever the user has chosen —
   // never a hardcoded default.
   const currency = usePreferredCurrency();
 
   return useMutation({
-    mutationFn: (values: AccountFormValues) => {
-      if (!user) throw new Error("Not authenticated");
-      return createAccount(createClient(), user.id, values, currency);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    mutationFn: (values: AccountFormValues) => createAccount(values, currency),
   });
 }
 
 export function useUpdateAccount() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ id, values }: { id: string; values: AccountFormValues }) =>
-      updateAccount(createClient(), id, values),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+      updateAccount(id, values),
   });
 }
 
 export function useSetAccountArchived() {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: ({ id, isArchived }: { id: string; isArchived: boolean }) =>
-      setAccountArchived(createClient(), id, isArchived),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+      setAccountArchived(id, isArchived),
   });
 }
 
 export function useDeleteAccount() {
-  const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (id: string) => deleteAccount(createClient(), id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
-    },
+    mutationFn: (id: string) => deleteAccount(id),
   });
 }

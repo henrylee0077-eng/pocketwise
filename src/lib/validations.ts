@@ -205,8 +205,83 @@ export const quickAddTurnSchema = z.object({
 });
 export type QuickAddTurn = z.infer<typeof quickAddTurnSchema>;
 
+// PocketWise's data lives entirely on-device (see src/lib/local-db) — the
+// quick-add API route has no database of its own to query, so the client
+// sends its already-loaded lists along with the conversation. The route
+// only ever reads these (to build the prompt and validate ids); it never
+// persists anything.
+const quickAddCategorySchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  name_en: z.string(),
+  name_zh: z.string(),
+  type: z.enum(["expense", "income"]),
+});
+
+const quickAddAccountSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  institution: z.string().nullable(),
+  type: z.string(),
+  is_archived: z.boolean(),
+});
+
+const quickAddPaymentMethodSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  name_en: z.string(),
+  name_zh: z.string(),
+});
+
+// Excel/PDF report export (src/app/api/export/*) is the other route with
+// no database of its own — same reasoning as the quick-add schemas above:
+// the client sends its already-loaded local data for the selected range.
+const exportTransactionSchema = z.object({
+  id: z.string(),
+  user_id: z.string(),
+  category_id: z.string().nullable(),
+  amount: z.number(),
+  currency: z.string(),
+  note: z.string().nullable(),
+  expense_date: z.string(),
+  type: z.enum(["expense", "income", "transfer"]),
+  payment_method_id: z.string().nullable(),
+  priority: z.enum(["high", "medium", "low"]).nullable(),
+  merchant: z.string().nullable(),
+  account_id: z.string().nullable(),
+  to_account_id: z.string().nullable(),
+  recurring_transaction_id: z.string().nullable(),
+  project_id: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  tagIds: z.array(z.string()),
+});
+
+const exportCategorySchema = z.object({ id: z.string(), name_en: z.string() });
+const exportAccountSchema = z.object({ id: z.string(), name: z.string() });
+const exportPaymentMethodSchema = z.object({ id: z.string(), name_en: z.string() });
+
+const exportRangeSchema = z.object({
+  startIso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  endIso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+export const exportRequestSchema = z.object({
+  transactions: z.array(exportTransactionSchema).max(50_000),
+  categories: z.array(exportCategorySchema).max(200),
+  accounts: z.array(exportAccountSchema).max(100),
+  paymentMethods: z.array(exportPaymentMethodSchema).max(100),
+  currency: z.string().length(3),
+  range: exportRangeSchema,
+});
+export type ExportRequest = z.infer<typeof exportRequestSchema>;
+
 export const quickAddRequestSchema = z.object({
   turns: z.array(quickAddTurnSchema).min(1).max(12),
+  categories: z.array(quickAddCategorySchema).max(200),
+  accounts: z.array(quickAddAccountSchema).max(100),
+  paymentMethods: z.array(quickAddPaymentMethodSchema).max(100),
+  currency: z.string().length(3),
 });
 export type QuickAddRequest = z.infer<typeof quickAddRequestSchema>;
 

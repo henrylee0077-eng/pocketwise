@@ -1,25 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { BarChart3, ChevronRight, LogOut, Repeat, Tag, Tags, Target, Wallet } from "lucide-react";
+import { BarChart3, ChevronRight, Repeat, Tag, Tags, Target, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/layout/LanguageSwitcher";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { AppLockSection } from "@/components/settings/AppLockSection";
 import { CurrencySection } from "@/components/settings/CurrencySection";
+import { GoogleBackupSection } from "@/components/settings/GoogleBackupSection";
 import { ResetAccountSection } from "@/components/settings/ResetAccountSection";
-import { useAuth } from "@/components/providers/AuthProvider";
 import { useLanguage } from "@/i18n/LanguageProvider";
 
 export default function SettingsPage() {
   const { t } = useLanguage();
-  const { user } = useAuth();
-
-  async function handleSignOut() {
-    await fetch("/auth/signout", { method: "POST" });
-    window.location.href = "/login";
-  }
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 pb-28 pt-6 sm:px-6">
@@ -101,18 +94,7 @@ export default function SettingsPage() {
 
       <CurrencySection />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.account")}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">{user?.email}</p>
-          <Button variant="outline" onClick={handleSignOut} className="w-fit">
-            <LogOut className="size-4" />
-            {t("settings.signOut")}
-          </Button>
-        </CardContent>
-      </Card>
+      <GoogleBackupSection />
 
       <AppLockSection />
 

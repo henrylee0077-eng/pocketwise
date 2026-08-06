@@ -1,56 +1,38 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/types/database";
+import { db, LOCAL_USER_ID, newId, nowIso } from "@/lib/local-db/schema";
 import type { Budget } from "@/types";
 import type { BudgetFormValues } from "@/lib/validations";
 
-export async function fetchBudgetForMonth(
-  supabase: SupabaseClient<Database>,
-  monthIso: string,
-): Promise<Budget | null> {
-  const { data, error } = await supabase
-    .from("budgets")
-    .select("*")
-    .eq("month", monthIso)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
+export async function fetchBudgetForMonth(monthIso: string): Promise<Budget | null> {
+  const existing = await db.budgets.where("month").equals(monthIso).first();
+  return existing ?? null;
 }
 
-export async function fetchBudgetHistory(
-  supabase: SupabaseClient<Database>,
-  limit = 12,
-): Promise<Budget[]> {
-  const { data, error } = await supabase
-    .from("budgets")
-    .select("*")
-    .order("month", { ascending: false })
-    .limit(limit);
-
-  if (error) throw error;
-  return data;
+export async function fetchBudgetHistory(limit = 12): Promise<Budget[]> {
+  const rows = await db.budgets.toArray();
+  return rows.sort((a, b) => (a.month < b.month ? 1 : -1)).slice(0, limit);
 }
 
-export async function upsertBudget(
-  supabase: SupabaseClient<Database>,
-  userId: string,
-  monthIso: string,
-  values: BudgetFormValues,
-): Promise<Budget> {
-  const { data, error } = await supabase
-    .from("budgets")
-    .upsert(
-      {
-        user_id: userId,
+export async function upsertBudget(monthIso: string, values: BudgetFormValues): Promise<Budget> {
+  const existing = await db.budgets.where("month").equals(monthIso).first();
+  const timestamp = nowIso();
+
+  const row: Budget = existing
+    ? {
+        ...existing,
+        amount: values.amount,
+        warning_threshold_percent: values.warningThresholdPercent,
+        updated_at: timestamp,
+      }
+    : {
+        id: newId(),
+        user_id: LOCAL_USER_ID,
         month: monthIso,
         amount: values.amount,
         warning_threshold_percent: values.warningThresholdPercent,
-      },
-      { onConflict: "user_id,month" },
-    )
-    .select("*")
-    .single();
+        created_at: timestamp,
+        updated_at: timestamp,
+      };
 
-  if (error) throw error;
-  return data;
+  await db.budgets.put(row);
+  return row;
 }
