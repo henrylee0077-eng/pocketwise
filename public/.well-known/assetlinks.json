@@ -5,7 +5,10 @@
       "namespace": "android_app",
       "package_name": "com.henrylee.pocketwise",
       "sha256_cert_fingerprints": [
-        "59:7F:CD:91:19:61:12:A8:AA:15:EB:33:D8:5D:9B:02:35:62:51:0C:66:73:62:5B:01:FD:79:A5:D7:3C:73:5D"
+        "59:7F:CD:91:19:61:12:A8:AA:15:EB:33:D8:5D:9B:02:35:62:51:0C:66:73:62:5B:01:FD:79:A5:D7:3C:73:5D",
+        "74:B7:CF:B3:79:B9:82:02:D6:E7:6B:67:A4:C0:52:4E:04:D6:9B:9B:B3:0A:43:BF:0C:22:5D:BB:27:D6:A3:89",
+        "A9:A8:20:79:6D:A8:5E:E6:D5:47:76:A4:2D:1C:9E:55:63:82:D7:D4:0B:B9:D7:AC:BA:BD:F4:84:00:46:93:BC",
+        "B9:34:5D:B8:C0:D1:F0:CF:B6:65:B0:F6:CF:8A:14:BD:E1:B8:73:D3:BB:9C:9F:FB:B5:DD:57:D7:6E:EE:0E:1A"
       ]
     }
   }
